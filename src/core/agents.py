@@ -16,7 +16,7 @@ class LTS_Agent(LTS_BaseClass):
 
     def __init__(self, uuid, name=None,
                  zmq_bind="tcp://*:5555", zmq_address="tcp://localhost:5555",
-                 zmq_seed_uuid=None, zmq_seed_address=None,
+                 zmq_seed_uuid=None, zmq_seed_address=None, zmq_recv_timeout_sec=10,
                  memory_capacity = 64,
                  running = True):
 
@@ -34,6 +34,7 @@ class LTS_Agent(LTS_BaseClass):
         self.zmq_context = zmq.Context()
         self.zmq_socket_rep = self.zmq_context.socket(zmq.REP)
         self.zmq_socket_rep.bind(self.zmq_bind)
+        self.zmq_recv_timeout = zmq_recv_timeout_sec * 1000
 
         self.dht = LTS_DHT(self.uuid)
         self.dht.add(self.uuid, self.zmq_address)
@@ -72,9 +73,18 @@ class LTS_Agent(LTS_BaseClass):
     def run(self):
         logging.info("Agent " + self.uuid + " (" + self.name + ") running")
         while self.getRunning():
-            message = self.processMessage(self.zmq_socket_rep.recv())
-            response = self.dispatchMessage(message)
-            self.zmq_socket_rep.send_string(response.toJSON())
+            self.zmq_socket_rep.RCVTIMEO = self.zmq_recv_timeout
+            data_recv = None
+            try:
+                data_recv = self.zmq_socket_rep.recv_string()
+            except zmq.ZMQError as e:
+                if e.errno == zmq.EAGAIN:
+                    logging.info("Agent " + self.uuid + " (" + self.name + ") recv timeout")
+                    self.setRunning(False)
+            if data_recv:
+                message = self.processMessage(data_recv)
+                response = self.dispatchMessage(message)
+                self.zmq_socket_rep.send_string(response.toJSON())
 
         logging.info("Agent " + self.uuid + " (" + self.name + ") terminating")
 
@@ -115,12 +125,20 @@ class LTS_Agent(LTS_BaseClass):
             socket.connect(to_address)
             start = datetime.now()
             socket.send_string(message.toJSON())
-            recv_str = socket.recv()
-            response.fromJSON(recv_str)
-            end = datetime.now()
-            latency = end - start
-            self.dht.setLatency(to_uuid, latency.microseconds)
-            logging.info("Agent " + self.uuid + " (" + self.name + ") latency " + str(latency.microseconds) + " microseconds with " + to_uuid)
+            socket.RCVTIMEO = self.zmq_recv_timeout
+            data_recv = None
+            try:
+                data_recv = socket.recv_string()
+            except zmq.ZMQError as e:
+                if e.errno == zmq.EAGAIN:
+                    logging.info("Agent " + self.uuid + " (" + self.name + ") recv timeout")
+            if data_recv:
+                response.fromJSON(data_recv)
+                end = datetime.now()
+                latency = end - start
+                self.dht.setLatency(to_uuid, latency.microseconds)
+                logging.info("Agent " + self.uuid + " (" + self.name + ") latency " + str(latency.microseconds) + " microseconds with " + to_uuid)
+
         else:
             logging.warning("Agent " + self.uuid + " send to agent " + to_uuid + " not in DHT")
         return response
