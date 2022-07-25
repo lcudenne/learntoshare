@@ -13,6 +13,7 @@ class LTS_MessageType(str, Enum):
     TERMINATE="TERMINATE"
     DHT_GET_PEER="DHT_GET_PEER"
     DHT_SUBSCRIBE="DHT_SUBSCRIBE"
+    DHT_SEARCH_PEER="DHT_SEARCH_PEER"
 
 # ------------------------------------------------------------------------------
 

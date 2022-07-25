@@ -15,11 +15,13 @@ class LTS_Chunk(LTS_BaseClass):
 
 class LTS_Memory(LTS_BaseClass):
 
-    def __init__(self, capacity = 1, name="main_memory"):
+    def __init__(self, uuid=None, capacity = 1, name="main_memory"):
         super().__init__("LTS_Memory")
+        self.uuid = uuid
+        self.name = name
         self.capacity = capacity
         self.memory = dict()
-        logging.info("Creating memory with capacity " + str(self.capacity))
+        logging.info("Creating memory " + self.uuid + " (" + self.name + ") with capacity " + str(self.capacity))
 
     def addChunk(self, chunk):
         res = None
