@@ -33,7 +33,8 @@ class LTS_Communicator(LTS_BaseClass):
 
         self.dht = LTS_DHT(self.uuid)
         self.dht.add(self.uuid, self.zmq_address)
-        if self.zmq_seed_uuid == self.uuid:
+        if self.zmq_seed_uuid == self.uuid or self.zmq_seed_uuid is None:
+            self.zmq_seed_uuid = self.uuid
             self.zmq_seed_address = self.zmq_address
         else:
             self.dht.add(self.zmq_seed_uuid, zmq_seed_address)
@@ -46,14 +47,14 @@ class LTS_Communicator(LTS_BaseClass):
 
     
     def processMessage(self, message_str):
-        message = LTS_Message(LTS_MessageType.NONE, "{}")
+        message = LTS_Message(LTS_MessageType.CORE_NONE)
         message.fromJSON(message_str)
         return message
 
 
     
     def sendMessage(self, to_uuid, message):
-        response = LTS_Message(LTS_MessageType.NONE, "{}")
+        response = LTS_Message(LTS_MessageType.CORE_NONE)
         socket = self.zmq_context.socket(zmq.REQ)
         to_address = self.dht.getAddress(to_uuid)
         if to_address:
@@ -75,7 +76,7 @@ class LTS_Communicator(LTS_BaseClass):
                 logging.info("Agent " + self.uuid + " (" + self.name + ") latency " + str(latency.microseconds) + " microseconds with " + to_uuid)
 
         else:
-            logging.warning("Agent " + self.uuid + " (" + self.name + ") send to agent " + to_uuid + " not in DHT")
+            logging.warning("Agent " + self.uuid + " (" + self.name + ") send to agent " + str(to_uuid) + " not in DHT")
 
         return response
 
@@ -90,7 +91,7 @@ class LTS_Communicator(LTS_BaseClass):
     # ask a peer for another peer
     def populate(self):
         best_uuid, _ = self.dht.getPeerBestLatency()
-        message = LTS_Message(LTS_MessageType.DHT_GET_PEER, "{}",
+        message = LTS_Message(LTS_MessageType.DHT_GET_PEER,
                               from_uuid=self.uuid, to_uuid = best_uuid)
         response = self.sendMessage(message.to_uuid, message)
         response_json = json.loads(json.loads(response.toJSON())['content'])

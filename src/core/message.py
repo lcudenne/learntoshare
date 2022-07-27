@@ -7,19 +7,20 @@ from src.core.common import *
 # ------------------------------------------------------------------------------
 
 class LTS_MessageType(str, Enum):
-    NONE="NONE"
-    ACK="ACK"
-    RESPONSE="RESPONSE"
-    TERMINATE="TERMINATE"
+    CORE_NONE="CORE_NONE"
+    CORE_ACK="CORE_ACK"
+    CORE_RESPONSE="CORE_RESPONSE"
+    CORE_TERMINATE="CORE_TERMINATE"
     DHT_GET_PEER="DHT_GET_PEER"
     DHT_SUBSCRIBE="DHT_SUBSCRIBE"
     DHT_SEARCH_PEER="DHT_SEARCH_PEER"
+    DSM_ADVERTIZE="DSM_ADVERTIZE"
 
 # ------------------------------------------------------------------------------
 
 class LTS_Message(LTS_BaseClass):
 
-    def __init__(self, message_type, content, from_uuid=None, to_uuid=None):
+    def __init__(self, message_type, content="{}", from_uuid=None, to_uuid=None):
 
         super().__init__("LTS_Message")
         self.message_type = message_type
@@ -41,7 +42,7 @@ class LTS_Message(LTS_BaseClass):
 if __name__ == "__main__":
     common = LTS_Common()
 
-    m = LTS_Message(LTS_MessageType.TERMINATE, "terminate")
+    m = LTS_Message(LTS_MessageType.CORE_TERMINATE, "terminate")
     print(m.toJSON())
 
     exit(0)

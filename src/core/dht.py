@@ -60,7 +60,7 @@ class LTS_DHT(LTS_BaseClass):
         res = '{"class_name": "LTS_DHT", "dht": {'
         i = 0
         for key, value in self.dht.items():
-            res = res + '"'+key+'": {"uuid": "'+value.uuid+'", "zmq_address": "'+value.zmq_address+'", "latency_us": '+str(value.latency_us)+'}'
+            res = res + '"'+str(key)+'": {"uuid": "'+str(value.uuid)+'", "zmq_address": "'+str(value.zmq_address)+'", "latency_us": '+str(value.latency_us)+'}'
             i = i + 1
             if i < len(self.dht):
                 res = res + ', '
@@ -70,9 +70,9 @@ class LTS_DHT(LTS_BaseClass):
     def dispatchGetPeer(self, message: LTS_Message):
         best_uuid, best_address = self.getPeerBestLatency(avoid_uuid=message.from_uuid)
         if best_uuid:
-            response = LTS_Message(LTS_MessageType.RESPONSE, '{"uuid": "' + best_uuid + '", "address": "' + best_address + '"}', from_uuid=message.to_uuid)
+            response = LTS_Message(LTS_MessageType.CORE_RESPONSE, '{"uuid": "' + best_uuid + '", "address": "' + best_address + '"}', from_uuid=message.to_uuid)
         else:
-            response = LTS_Message(LTS_MessageType.NONE, "{}")
+            response = LTS_Message(LTS_MessageType.CORE_NONE)
         return response
     
 
