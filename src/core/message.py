@@ -14,7 +14,8 @@ class LTS_MessageType(str, Enum):
     DHT_GET_PEER="DHT_GET_PEER"
     DHT_SUBSCRIBE="DHT_SUBSCRIBE"
     DHT_SEARCH_PEER="DHT_SEARCH_PEER"
-    DSM_ADVERTIZE="DSM_ADVERTIZE"
+    DSM_CHUNK_ADVERTIZE="DSM_CHUNK_ADVERTIZE"
+    DSM_CHUNK_GET="DSM_CHUNK_GET"
 
 # ------------------------------------------------------------------------------
 

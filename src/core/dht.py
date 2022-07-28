@@ -17,10 +17,10 @@ class LTS_DHTEntry(LTS_BaseClass):
 
 class LTS_DHT(LTS_BaseClass):
 
-    def __init__(self, uuid):
+    def __init__(self, dht_uuid):
         super().__init__("LTS_DHT")
+        self.uuid = dht_uuid
         self.dht = dict()
-        self.uuid = uuid
 
     def add(self, uuid, zmq_address, latency_us=0):
         entry = LTS_DHTEntry(uuid, zmq_address, latency_us)

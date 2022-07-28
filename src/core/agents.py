@@ -11,21 +11,21 @@ from src.core.communicator import *
 
 class LTS_Agent(LTS_BaseClass):
 
-    def __init__(self, uuid, name=None,
+    def __init__(self, agent_uuid, name=None,
                  zmq_bind="tcp://*:5555", zmq_address="tcp://localhost:5555",
                  zmq_seed_uuid=None, zmq_seed_address=None, zmq_recv_timeout_sec=10,
                  running = True,
                  dispatch_handler = None):
 
         super().__init__("LTS_Agent")
-        self.uuid = uuid
+        self.uuid = agent_uuid
         self.name = name
         if not self.name:
-            self.name = str(uuid)
+            self.name = str(agent_uuid)
 
         self.dispatch_handler = dispatch_handler
 
-        self.communicator = LTS_Communicator(uuid, self.name,
+        self.communicator = LTS_Communicator(self.uuid, self.name,
                                              zmq_bind, zmq_address,
                                              zmq_seed_uuid, zmq_seed_address,
                                              zmq_recv_timeout_sec)

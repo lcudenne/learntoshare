@@ -23,7 +23,7 @@ class LTS_Common():
     def __init__(self):
         logging.basicConfig(level=logging.DEBUG,
                             format='%(asctime)s %(levelname)-8s %(message)s',
-                            datefmt='%Y-%m-%d %H:%M')
+                            datefmt='%Y-%m-%d %H:%M:%S')
         logging.info(LTS_NAME + " v" + str(LTS_VERSION_MAJ) + "." + str(LTS_VERSION_MIN))
         
 # ------------------------------------------------------------------------------

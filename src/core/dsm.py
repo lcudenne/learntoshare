@@ -30,7 +30,8 @@ class LTS_DSM(LTS_BaseClass):
                                zmq_seed_uuid, zmq_seed_address, zmq_recv_timeout_sec,
                                running, dispatch_handler=self)
 
-        self.memory = LTS_Memory(uuid=self.uuid, name=self.name, capacity = memory_capacity)
+        self.memory = LTS_Memory(memory_uuid=self.uuid, name=self.name,
+                                 capacity = memory_capacity)
 
 
     def toJSON(self):
@@ -56,7 +57,16 @@ class LTS_DSM(LTS_BaseClass):
         content = None
         chunk = self.memory.getChunk(chunk_id)
         if chunk:
-            content = chunk.content
+            if chunk.content is not None:
+                content = chunk.content
+            else:
+                if chunk.agent_uuid is not None and chunk.agent_uuid != self.uuid:
+                    logging.info("DSM " + str(self.uuid) + " (" + self.name + ") asking agent " + chunk.agent_uuid + " for chunk " + chunk.uuid)
+                    message = LTS_Message(LTS_MessageType.DSM_CHUNK_GET,
+                                          from_uuid=self.uuid, to_uuid=chunk.agent_uuid,
+                                          content=chunk.toJSON())
+                    response = self.agent.communicator.sendMessage(chunk.agent_uuid, message)
+
         else:
             logging.warning("DSM " + self.uuid + " (" + self.name + ") reads chunk " + chunk_id + " not in memory")
         return content
@@ -66,10 +76,12 @@ class LTS_DSM(LTS_BaseClass):
         response = LTS_Message(LTS_MessageType.CORE_ACK,
                                from_uuid=self.uuid, to_uuid=message.from_uuid)
 
-        if message.message_type == LTS_MessageType.DSM_ADVERTIZE:
-            chunk = LTS_Chunk(0)
+        if message.message_type == LTS_MessageType.DSM_CHUNK_ADVERTIZE:
+            chunk = LTS_Chunk()
             chunk.fromJSON(message.content)
             self.memory.addChunk(chunk)
+        elif message.message_type == LTS_MessageType.DSM_CHUNK_GET:
+            pass
         else:
             logging.error("DSM " + self.uuid + " (" + self.name + ") received message from " + message.from_uuid + " with unknown DSM type " + str(message.message_type))
 
@@ -81,7 +93,7 @@ class LTS_DSM(LTS_BaseClass):
     def advertize(self, chunk_id):
         chunk = self.memory.getChunkMetadata(chunk_id)
         if chunk:
-            message = LTS_Message(LTS_MessageType.DSM_ADVERTIZE, from_uuid=self.uuid,
+            message = LTS_Message(LTS_MessageType.DSM_CHUNK_ADVERTIZE, from_uuid=self.uuid,
                                   content=chunk.toJSON())
             self.agent.communicator.broadcast(message)
 
@@ -105,10 +117,17 @@ if __name__ == "__main__":
 
 
     print(dsm.memory.toJSON())
-    sleep(4)    
-    dsm2.write("x", "16")
-    dsm2.advertize("x")
+
+    sleep(2)
+
+    dsm2.agent.communicator.subscribe(dsm.uuid)
+
+    dsm2.write("y", "16")
+    dsm2.advertize("y")
     print(dsm.memory.toJSON())
 
+    sleep(2)
+    print("dsm read x ", dsm.read("x"))
+    print("dsm read y ", dsm.read("y"))
     
     exit(0)

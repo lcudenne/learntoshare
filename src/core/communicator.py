@@ -12,13 +12,13 @@ from src.core.message import *
 
 class LTS_Communicator(LTS_BaseClass):
 
-    def __init__(self, uuid, name,
+    def __init__(self, comm_uuid, name,
                  zmq_bind="tcp://*:5555", zmq_address="tcp://localhost:5555",
                  zmq_seed_uuid=None, zmq_seed_address=None,
                  zmq_recv_timeout_sec=10):
 
         super().__init__("LTS_Communicator")
-        self.uuid = uuid
+        self.uuid = comm_uuid
         self.name = name
 
         self.zmq_bind = zmq_bind
