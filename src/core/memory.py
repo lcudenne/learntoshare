@@ -20,6 +20,9 @@ class LTS_Chunk(LTS_BaseClass):
         self.version = obj['version']
         self.content = obj['content']
 
+    def copyMetadata(self, chunk):
+        self.agent_uuid = chunk.agent_uuid
+        self.version = chunk.version
 
 # ------------------------------------------------------------------------------
 
@@ -45,7 +48,15 @@ class LTS_Memory(LTS_BaseClass):
         if unique_id in self.memory:
             chunk = self.memory[unique_id]
         return chunk
-    
+
+    def getChunkMetadata(self, unique_id):
+        chunkmd = None
+        if unique_id in self.memory:
+            chunk = self.memory[unique_id]
+            chunkmd = LTS_Chunk(unique_id)
+            chunkmd.copyMetadata(chunk)
+        return chunkmd
+
     def removeChunk(self, unique_id):
         chunk = self.getChunk(unique_id)
         if chunk:

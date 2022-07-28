@@ -79,7 +79,7 @@ class LTS_DSM(LTS_BaseClass):
 
     
     def advertize(self, chunk_id):
-        chunk = self.memory.getChunk(chunk_id)
+        chunk = self.memory.getChunkMetadata(chunk_id)
         if chunk:
             message = LTS_Message(LTS_MessageType.DSM_ADVERTIZE, from_uuid=self.uuid,
                                   content=chunk.toJSON())
