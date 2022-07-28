@@ -66,7 +66,8 @@ class LTS_DSM(LTS_BaseClass):
                                           from_uuid=self.uuid, to_uuid=chunk.agent_uuid,
                                           content=chunk.toJSON())
                     response = self.agent.communicator.sendMessage(chunk.agent_uuid, message)
-
+                    chunk.fromJSON(response.content)
+                    content = chunk.content
         else:
             logging.warning("DSM " + self.uuid + " (" + self.name + ") reads chunk " + chunk_id + " not in memory")
         return content
@@ -81,7 +82,13 @@ class LTS_DSM(LTS_BaseClass):
             chunk.fromJSON(message.content)
             self.memory.addChunk(chunk)
         elif message.message_type == LTS_MessageType.DSM_CHUNK_GET:
-            pass
+            chunkmd = LTS_Chunk()
+            chunkmd.fromJSON(message.content)
+            chunk = self.memory.getChunk(chunkmd.uuid)
+            if chunk:
+                response.content = chunk.toJSON()
+            else:
+                response.content = message.content
         else:
             logging.error("DSM " + self.uuid + " (" + self.name + ") received message from " + message.from_uuid + " with unknown DSM type " + str(message.message_type))
 
