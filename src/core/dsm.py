@@ -102,7 +102,7 @@ class LTS_DSM(LTS_BaseClass):
         if chunk:
             message = LTS_Message(LTS_MessageType.DSM_CHUNK_ADVERTIZE, from_uuid=self.uuid,
                                   content=chunk.toJSON())
-            self.agent.communicator.broadcast(message)
+            self.agent.communicator.broadcastMessage(message)
 
     
 # ------------------------------------------------------------------------------

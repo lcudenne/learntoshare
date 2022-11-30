@@ -7,6 +7,7 @@ from src.core.common import *
 # ------------------------------------------------------------------------------
 
 class LTS_MessageType(str, Enum):
+    USER_DEFINED="USER_DEFINED"
     CORE_NONE="CORE_NONE"
     CORE_ACK="CORE_ACK"
     CORE_RESPONSE="CORE_RESPONSE"

@@ -38,6 +38,7 @@ class LTS_Communicator(LTS_BaseClass):
             self.zmq_seed_address = self.zmq_address
         else:
             self.dht.add(self.zmq_seed_uuid, zmq_seed_address)
+            self.subscribe(self.zmq_seed_uuid)
 
 
     def toJSON(self):
@@ -81,12 +82,20 @@ class LTS_Communicator(LTS_BaseClass):
         return response
 
 
-    def broadcast(self, message):
+    def send(self, to_uuid, content):
+        message = LTS_Message(LTS_MessageType.USER_DEFINED, content=content,
+                              from_uuid=self.uuid, to_uuid=to_uuid)
+        return self.sendMessage(to_uuid, message)
+    
+    def broadcastMessage(self, message):
         for key, value in self.dht.dht.items():
             if value.uuid != self.uuid:
                 message.to_uuid = value.uuid
                 self.sendMessage(message.to_uuid, message)
 
+    def broadcast(self, content):
+        message = LTS_Message(LTS_MessageType.USER_DEFINED, content=content, from_uuid=self.uuid)
+        self.broadcastMessage(message)
 
     # ask a peer for another peer
     def populate(self):
