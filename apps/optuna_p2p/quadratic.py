@@ -16,8 +16,8 @@ def optimize_function(trial):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
-        prog = 'optuna_p2p.py',
-        description = 'Optimization skeleton using Optuna over the LTS peer-to-peer framework',
+        prog = 'quadratic.py',
+        description = 'Quadratic optimization using Optuna over the LTS peer-to-peer framework',
         epilog = 'https://github.com/lcudenne/learntoshare')
 
     parser.add_argument("-r", "--nrounds", type=int, default=4, required=False,
