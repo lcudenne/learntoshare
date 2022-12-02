@@ -3,8 +3,6 @@ import argparse
 import queue
 import json
 
-from time import sleep
-
 from src.core.common import LTS_Common
 from src.core.agents import LTS_Agent
 
@@ -15,8 +13,9 @@ from src.core.agents import LTS_Agent
 
 class OptunaP2P():
 
-    def __init__(self, args, optimize_function):
+    def __init__(self, args, optimize_function, study=None):
         self.optimize_function = optimize_function
+        self.study = study
         self.pending_trials = queue.Queue()
         LTS_Common()
         self.overlay = LTS_Agent(agent_uuid=args.uid,
@@ -54,14 +53,15 @@ class OptunaP2P():
         return self.optimize_function(trial)
 
     def optimize(self):
-        study = optuna.create_study()
+        if not self.study:
+            self.study = optuna.create_study()
         
         for r in range(self.nrounds):
             
             # process incoming trials
             while not self.pending_trials.empty():
                 trial_json = self.pending_trials.get()
-                trial = study.ask()
+                trial = self.study.ask()
                 trial_value = float(trial_json["best_value"])
                 trial_params = trial_json["best_params"]
                 trial_types = trial_json["param_types"]
@@ -76,19 +76,15 @@ class OptunaP2P():
                     else:
                         print("Warning: categorical distribution not supported. convert to int")
 
-                study.tell(trial, trial_value)
+                self.study.tell(trial, trial_value)
                 print("Add", trial_json, "to local Optuna optimization")
                 
             # optimize locally
-            study.optimize(self.objective, n_trials=self.ntrials_per_round)
-            print("Round {} best value: {} (params: {})\n".format(r, study.best_value, study.best_params))
-
-            # TOREMOVE
-            sleep(2)
-
+            self.study.optimize(self.objective, n_trials=self.ntrials_per_round)
+            print("Round {} best value: {} (params: {})\n".format(r, self.study.best_value, self.study.best_params))
 
             # broadcast best trial to other peers
-            content = '{"best_value": ' + str(study.best_value) + ', "best_params": ' + str(study.best_params).replace("'", "\"") + ', "param_types": ' + str(self.bestParamsTypes(study.best_params)).replace("'", "\"") + '}'
+            content = '{"best_value": ' + str(self.study.best_value) + ', "best_params": ' + str(self.study.best_params).replace("'", "\"") + ', "param_types": ' + str(self.bestParamsTypes(self.study.best_params)).replace("'", "\"") + '}'
             self.overlay.communicator.broadcast(content)
 
         
@@ -107,9 +103,9 @@ if __name__ == "__main__":
         description = 'Optimization skeleton using Optuna over the LTS peer-to-peer framework',
         epilog = 'https://github.com/lcudenne/learntoshare')
 
-    parser.add_argument("-r", "--nrounds", type=int, default=4, required=False,
-                        help="number of rounds, each round composed by n trials and a broadcast of the current best solution")
-    parser.add_argument("-t", "--ntrials", type=int, default=10, required=False,
+    parser.add_argument("-r", "--nrounds", type=int, default=0, required=False,
+                        help="number of rounds, each round composed by t trials and a broadcast of the current best solution")
+    parser.add_argument("-t", "--ntrials", type=int, default=0, required=False,
                         help="number of trials per round")
     parser.add_argument("-u", "--uid", type=str, required=False,
                         help="unique id for this agent (default a random uuid4)")

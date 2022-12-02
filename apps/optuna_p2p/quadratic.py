@@ -1,6 +1,8 @@
 import optuna
 import argparse
 
+from time import sleep
+
 from apps.optuna_p2p.optuna_p2p import OptunaP2P
 
 # ------------------------------------------------------------------------------
@@ -8,6 +10,9 @@ from apps.optuna_p2p.optuna_p2p import OptunaP2P
 def optimize_function(trial):
     x = trial.suggest_float("x", -100, 100)
     y = trial.suggest_int("y", -1, 1)
+    # emulates a compute-intensive optimization function
+    # to be able to run several P2P agents
+    sleep(0.1)
     return x**2 + y
 
 # ------------------------------------------------------------------------------
@@ -21,7 +26,7 @@ if __name__ == "__main__":
         epilog = 'https://github.com/lcudenne/learntoshare')
 
     parser.add_argument("-r", "--nrounds", type=int, default=4, required=False,
-                        help="number of rounds, each round composed by n trials and a broadcast of the current best solution")
+                        help="number of rounds, each round composed by t trials and a broadcast of the current best solution")
     parser.add_argument("-t", "--ntrials", type=int, default=10, required=False,
                         help="number of trials per round")
     parser.add_argument("-u", "--uid", type=str, required=False,
