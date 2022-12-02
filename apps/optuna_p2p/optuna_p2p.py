@@ -13,19 +13,19 @@ from src.core.agents import LTS_Agent
 # ------------------------------------------------------------------------------
 
 
-class OptunaAgent():
+class OptunaP2P():
 
-    def __init__(self, args):
+    def __init__(self, args, optimize_function):
+        self.optimize_function = optimize_function
         self.pending_trials = queue.Queue()
         LTS_Common()
-        overlay = LTS_Agent(agent_uuid=args.uid,
-                            name=args.name,
-                            zmq_bind=args.bind,
-                            zmq_address=args.address,
-                            zmq_seed_uuid=args.seeduid,
-                            zmq_seed_address=args.seedaddress,
-                            dispatch_handler=self)
-        self.overlay = overlay
+        self.overlay = LTS_Agent(agent_uuid=args.uid,
+                                 name=args.name,
+                                 zmq_bind=args.bind,
+                                 zmq_address=args.address,
+                                 zmq_seed_uuid=args.seeduid,
+                                 zmq_seed_address=args.seedaddress,
+                                 dispatch_handler=self)
         self.ntrials_per_round = args.ntrials
         self.nrounds = args.nrounds
         print("LTS agent", self.overlay.toJSON())
@@ -51,9 +51,7 @@ class OptunaAgent():
         return None
 
     def objective(self, trial):
-        x = trial.suggest_float("x", -100, 100)
-        y = trial.suggest_int("y", -1, 1)
-        return x**2 + y
+        return self.optimize_function(trial)
 
     def optimize(self):
         study = optuna.create_study()
@@ -96,12 +94,17 @@ class OptunaAgent():
         
 # ------------------------------------------------------------------------------
 
+def optimize_function_placeholder(trial):
+    return 0
+
+# ------------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
-        prog = 'optuna_quadratic.py',
-        description = 'Quadratic optimization using Optuna over the LTS peer-to-peer framework',
+        prog = 'optuna_p2p.py',
+        description = 'Optimization skeleton using Optuna over the LTS peer-to-peer framework',
         epilog = 'https://github.com/lcudenne/learntoshare')
 
     parser.add_argument("-r", "--nrounds", type=int, default=4, required=False,
@@ -124,7 +127,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    optuna_agent = OptunaAgent(args=args)
+    optuna_agent = OptunaP2P(args=args, optimize_function=optimize_function_placeholder)
     optuna_agent.optimize()
     
     optuna_agent.terminate()
