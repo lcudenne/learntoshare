@@ -41,7 +41,7 @@ class OptunaAgent():
 
     def objective(self, trial):
         x = trial.suggest_float("x", -100, 100)
-        y = trial.suggest_categorical("y", [-1, 0, 1])
+        y = trial.suggest_int("y", -1, 1)
         return x**2 + y
 
     def optimize(self):
@@ -52,14 +52,14 @@ class OptunaAgent():
             # process incoming trials
             while not self.pending_trials.empty():
                 trial_json = self.pending_trials.get()
-                # trial = study.ask()
+                trial = study.ask()
                 trial_value = trial_json["best_value"]
                 trial_params = trial_json["best_params"]
                 # for param in trial_params:
-                #     trial.storage.get_trial_params(trial._trial_id)[param] = trial_params[param]
-                # trial.suggest_float("x", trial_params["x"], trial_params["x"])
-                # trial.suggest_int("y", trial_params["y"], trial_params["y"])
-                # study.tell(trial, trial_value)
+                #    trial.storage.get_trial_params(trial._trial_id)[param] = trial_params[param]
+                trial.suggest_float("x", trial_params["x"], float(trial_params["x"]))
+                trial.suggest_int("y", int(trial_params["y"]), int(trial_params["y"]))
+                study.tell(trial, float(trial_value))
                 print("Add", trial_json, "to local Optuna optimization")
                 
             # optimize locally
@@ -82,7 +82,7 @@ if __name__ == "__main__":
         description = 'Quadratic optimization using Optuna over the LTS peer-to-peer framework',
         epilog = 'https://github.com/lcudenne/learntoshare')
 
-    parser.add_argument("-r", "--nrounds", type=int, default=2, required=False,
+    parser.add_argument("-r", "--nrounds", type=int, default=4, required=False,
                         help="number of rounds, each round composed by n trials and a broadcast of the current best solution")
     parser.add_argument("-t", "--ntrials", type=int, default=10, required=False,
                         help="number of trials per round")
