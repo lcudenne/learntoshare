@@ -106,7 +106,6 @@ class LTS_Agent(LTS_BaseClass):
             content_json = json.loads(message.content)
             if content_json and 'uuid' in content_json:
                 self.communicator.dht.add(content_json['uuid'], content_json['address'])
-                logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") added " + content_json['uuid'] + " (" + content_json['address'] + ") to DHT")
 
         elif message.message_type == LTS_MessageType.USER_DEFINED or message.message_type.startswith("DSM_"):
             if self.dispatch_handler:

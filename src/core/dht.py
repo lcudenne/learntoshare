@@ -1,4 +1,4 @@
-
+from datetime import datetime
 
 from src.core.common import *
 from src.core.message import *
@@ -12,7 +12,8 @@ class LTS_DHTEntry(LTS_BaseClass):
         self.uuid = uuid
         self.zmq_address = zmq_address
         self.latency_us = latency_us
-
+        self.timestamp_create = datetime.now()
+        
 # ------------------------------------------------------------------------------
 
 class LTS_DHT(LTS_BaseClass):
@@ -25,6 +26,8 @@ class LTS_DHT(LTS_BaseClass):
     def add(self, uuid, zmq_address, latency_us=0):
         entry = LTS_DHTEntry(uuid, zmq_address, latency_us)
         self.dht[uuid] = entry
+        logging.info("[DHT] Peer " + self.uuid + " DHT ADD " + uuid + " " + zmq_address)
+
 
     def getAddress(self, uuid):
         res = None
@@ -60,7 +63,7 @@ class LTS_DHT(LTS_BaseClass):
         res = '{"class_name": "LTS_DHT", "dht": {'
         i = 0
         for key, value in self.dht.items():
-            res = res + '"'+str(key)+'": {"uuid": "'+str(value.uuid)+'", "zmq_address": "'+str(value.zmq_address)+'", "latency_us": '+str(value.latency_us)+'}'
+            res = res + '"'+str(key)+'": {"uuid": "'+str(value.uuid)+'", "zmq_address": "'+str(value.zmq_address)+'", "latency_us": '+str(value.latency_us)+', "timestamp_create": "'+str(value.timestamp_create)+'"}'
             i = i + 1
             if i < len(self.dht):
                 res = res + ', '
