@@ -15,7 +15,8 @@ class LTS_Agent(LTS_BaseClass):
                  zmq_bind="tcp://*:5555", zmq_address="tcp://localhost:5555",
                  zmq_seed_uuid=None, zmq_seed_address=None, zmq_recv_timeout_sec=10,
                  running = True,
-                 dispatch_handler = None):
+                 dispatch_handler = None,
+                 heartbeat_timer_sec=8):
 
         super().__init__("LTS_Agent")
         self.uuid = agent_uuid or str(uuid.uuid4())
@@ -29,12 +30,19 @@ class LTS_Agent(LTS_BaseClass):
                                              zmq_seed_uuid, zmq_seed_address,
                                              zmq_recv_timeout_sec)
 
+        self.heartbeat_timer_sec = heartbeat_timer_sec
+
+        self.pid_com = None
+        self.pid_net = None
+
         self.running_lock = threading.Lock()
         self.setRunning(running)
         
         if self.getRunning():
-            self.pid = threading.Thread(target=self.run)
-            self.pid.start()
+            self.pid_com = threading.Thread(target=self.run_com)
+            self.pid_com.start()
+            self.pid_res = threading.Thread(target=self.run_net)
+            self.pid_res.start()
 
 
     def toJSON(self):
@@ -53,8 +61,8 @@ class LTS_Agent(LTS_BaseClass):
         self.running_lock.release()
 
 
-    def run(self):
-        logging.info("Agent " + self.uuid + " (" + self.name + ") running on " + self.communicator.zmq_address)
+    def run_com(self):
+        logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") running on " + self.communicator.zmq_address)
         while self.getRunning():
             self.communicator.zmq_socket_rep.RCVTIMEO = self.communicator.zmq_recv_timeout
             data_recv = None
@@ -62,20 +70,29 @@ class LTS_Agent(LTS_BaseClass):
                 data_recv = self.communicator.zmq_socket_rep.recv_string()
             except zmq.ZMQError as e:
                 if e.errno == zmq.EAGAIN:
-                    logging.info("Agent " + self.uuid + " (" + self.name + ") recv timeout")
+                    logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") recv timeout")
                     self.setRunning(False)
             if data_recv:
                 message = self.communicator.processMessage(data_recv)
                 response = self.dispatchMessage(message)
                 self.communicator.zmq_socket_rep.send_string(response.toJSON())
 
-        logging.info("Agent " + self.uuid + " (" + self.name + ") terminating")
+        logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") terminating")
 
 
+    def run_net(self):
+        logging.info("[NET] Agent " + self.uuid + " (" + self.name + ") building network overlay")
+        while self.getRunning():
+            sleep(self.heartbeat_timer_sec)
+            new_uuid = self.communicator.populate()
+            if new_uuid:
+                self.communicator.subscribe(new_uuid)
+            
+        logging.info("[NET] Agent " + self.uuid + " (" + self.name + ") terminating")
 
 
     def dispatchMessage(self, message):
-        logging.info("Agent " + self.uuid + " (" + self.name + ") received message " + str(message.message_type) + " from " + message.from_uuid)
+        logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") received message " + str(message.message_type) + " from " + message.from_uuid)
         response = LTS_Message(LTS_MessageType.CORE_ACK,
                                from_uuid=self.uuid, to_uuid=message.from_uuid)
 
@@ -89,18 +106,18 @@ class LTS_Agent(LTS_BaseClass):
             content_json = json.loads(message.content)
             if content_json and 'uuid' in content_json:
                 self.communicator.dht.add(content_json['uuid'], content_json['address'])
-                logging.info("Agent " + self.uuid + " (" + self.name + ") added " + content_json['uuid'] + " (" + content_json['address'] + ") to DHT")
+                logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") added " + content_json['uuid'] + " (" + content_json['address'] + ") to DHT")
 
         elif message.message_type == LTS_MessageType.USER_DEFINED or message.message_type.startswith("DSM_"):
             if self.dispatch_handler:
                 response = self.dispatch_handler.dispatchMessage(message) or response
 
             else:
-                logging.error("Agent " + self.uuid + " (" + self.name + ") received message from " + message.from_uuid + " with type " + str(message.message_type) + " but no dispatch handler is set")
+                logging.error("[COM] Agent " + self.uuid + " (" + self.name + ") received message from " + message.from_uuid + " with type " + str(message.message_type) + " but no dispatch handler is set")
 
 
         else:
-            logging.error("Agent " + self.uuid + " (" + self.name + ") received message from " + message.from_uuid + " with unknown type " + str(message.message_type))
+            logging.error("[COM] Agent " + self.uuid + " (" + self.name + ") received message from " + message.from_uuid + " with unknown type " + str(message.message_type))
             self.terminate()
 
         return response

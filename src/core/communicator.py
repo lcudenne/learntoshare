@@ -68,16 +68,16 @@ class LTS_Communicator(LTS_BaseClass):
                 data_recv = socket.recv_string()
             except zmq.ZMQError as e:
                 if e.errno == zmq.EAGAIN:
-                    logging.info("Agent " + self.uuid + " (" + self.name + ") recv timeout")
+                    logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") recv timeout")
             if data_recv:
                 response.fromJSON(data_recv)
                 end = datetime.now()
                 latency = end - start
                 self.dht.setLatency(to_uuid, latency.microseconds)
-                logging.info("Agent " + self.uuid + " (" + self.name + ") latency " + str(latency.microseconds) + " microseconds with " + to_uuid)
+                logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") latency " + str(latency.microseconds) + " microseconds with " + to_uuid)
 
         else:
-            logging.warning("Agent " + self.uuid + " (" + self.name + ") send to agent " + str(to_uuid) + " not in DHT")
+            logging.warning("[COM] Agent " + self.uuid + " (" + self.name + ") send to agent " + str(to_uuid) + " not in DHT")
 
         return response
 
@@ -106,8 +106,10 @@ class LTS_Communicator(LTS_BaseClass):
         response_json = json.loads(json.loads(response.toJSON())['content'])
         if response_json and 'uuid' in response_json:
             self.dht.add(response_json['uuid'], response_json['address'])
-            logging.info("Agent " + self.uuid + " (" + self.name + ") added " + response_json['uuid'] + " (" + response_json['address'] + ") to DHT")
-        return response_json['uuid']
+            logging.info("[NET] Agent " + self.uuid + " (" + self.name + ") added " + response_json['uuid'] + " (" + response_json['address'] + ") to DHT")
+            return response_json['uuid']
+        else:
+            return None
 
 
     
