@@ -40,6 +40,11 @@ class LTS_Communicator(LTS_BaseClass):
             self.dht.add(self.zmq_seed_uuid, zmq_seed_address)
             self.subscribe(self.zmq_seed_uuid)
 
+    def __del__(self):
+        self.zmq_socket_rep.close()
+        self.zmq_context.destroy()
+
+
 
     def toJSON(self):
         res = '{"class_name": "LTS_Communicator", "uuid": "'+self.uuid+'", "zmq_bind": "'+self.zmq_bind+'", "zmq_address": "'+self.zmq_address+'", "zmq_seed_uuid": "'+self.zmq_seed_uuid+'", "zmq_seed_address": "'+self.zmq_seed_address+'", "dht": '+self.dht.toJSON()+'}'
@@ -69,6 +74,7 @@ class LTS_Communicator(LTS_BaseClass):
             except zmq.ZMQError as e:
                 if e.errno == zmq.EAGAIN:
                     logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") recv timeout")
+            socket.close()
             if data_recv:
                 response.fromJSON(data_recv)
                 end = datetime.now()

@@ -2,19 +2,39 @@ import optuna
 import argparse
 import queue
 import json
+import logging
 
 from src.core.common import LTS_Common
 from src.core.agents import LTS_Agent
 
 
+# ------------------------------------------------------------------------------
+
+def objective_function_placeholder(trial):
+    logging.info("Optuna objective function not implemented")
+    return 0
+
+# ------------------------------------------------------------------------------
+
+class ObjectiveObjectPlaceholder:
+    def __init__(self):
+        logging.info("Optuna objective class not implemented")
+        pass
+
+    def __call__(self, trial):
+        return 0
 
 # ------------------------------------------------------------------------------
 
 
 class OptunaP2P():
 
-    def __init__(self, args, optimize_function, study=None):
-        self.optimize_function = optimize_function
+    def __init__(self, args,
+                 objective_function=objective_function_placeholder,
+                 objective_object=None,
+                 study=None):
+        self.objective_function = objective_function
+        self.objective_object = objective_object
         self.study = study
         self.pending_trials = queue.Queue()
         LTS_Common()
@@ -50,7 +70,7 @@ class OptunaP2P():
         return None
 
     def objective(self, trial):
-        return self.optimize_function(trial)
+        return self.objective_function(trial)
 
     def optimize(self):
         if not self.study:
@@ -80,18 +100,16 @@ class OptunaP2P():
                 print("Add", trial_json, "to local Optuna optimization")
                 
             # optimize locally
-            self.study.optimize(self.objective, n_trials=self.ntrials_per_round)
+            if self.objective_object:
+                self.study.optimize(self.objective_object, n_trials=self.ntrials_per_round)
+            else:
+                self.study.optimize(self.objective, n_trials=self.ntrials_per_round)
             print("Round {} best value: {} (params: {})\n".format(r, self.study.best_value, self.study.best_params))
 
             # broadcast best trial to other peers
             content = '{"best_value": ' + str(self.study.best_value) + ', "best_params": ' + str(self.study.best_params).replace("'", "\"") + ', "param_types": ' + str(self.bestParamsTypes(self.study.best_params)).replace("'", "\"") + '}'
             self.overlay.communicator.broadcast(content)
 
-        
-# ------------------------------------------------------------------------------
-
-def optimize_function_placeholder(trial):
-    return 0
 
 # ------------------------------------------------------------------------------
 
@@ -123,9 +141,12 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    optuna_agent = OptunaP2P(args=args, optimize_function=optimize_function_placeholder)
+    optuna_agent = OptunaP2P(args=args, objective_function=objective_function_placeholder)
     optuna_agent.optimize()
-    
     optuna_agent.terminate()
-    
+
+    optuna_agent = OptunaP2P(args=args, objective_object=ObjectiveObjectPlaceholder())
+    optuna_agent.optimize()
+    optuna_agent.terminate()
+
     exit(0)

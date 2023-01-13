@@ -41,8 +41,8 @@ class LTS_Agent(LTS_BaseClass):
         if self.getRunning():
             self.pid_com = threading.Thread(target=self.run_com)
             self.pid_com.start()
-            self.pid_res = threading.Thread(target=self.run_net)
-            self.pid_res.start()
+            self.pid_net = threading.Thread(target=self.run_net)
+            self.pid_net.start()
 
 
     def toJSON(self):
@@ -129,6 +129,9 @@ class LTS_Agent(LTS_BaseClass):
                               from_uuid=self.uuid)
         self.communicator.broadcastMessage(message)
         self.setRunning(False)
+        self.pid_com.join()
+        self.pid_net.join()
+        del self.communicator
 
 
 

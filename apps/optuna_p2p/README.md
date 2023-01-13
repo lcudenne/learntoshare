@@ -62,13 +62,13 @@ Use the `--help` argument for the list of options.
 
 ### About the code
 
-The optimization function is written by the user. It takes an Optuna
+The objective function is written by the user. It takes an Optuna
 trial as a single mandatory parameter and returns a float which is the
 result of the optimization function. You can use any name to define
 this function.
 
 ```python
-def optimize_function(trial):
+def objective_function(trial):
     x = trial.suggest_float("x", -100, 100)
     y = trial.suggest_int("y", -1, 1)
     return x**2 + y
@@ -82,9 +82,8 @@ the `terminate` asks for a distributed termination of the P2P overlay.
 
 
 ```python
-    optuna_agent = OptunaP2P(args=args, optimize_function=optimize_function)
+    optuna_agent = OptunaP2P(args=args, objective_function=objective_function)
     optuna_agent.optimize()
-    
     optuna_agent.terminate()
 ```
 
