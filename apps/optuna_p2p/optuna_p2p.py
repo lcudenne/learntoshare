@@ -10,6 +10,36 @@ from src.core.agents import LTS_Agent
 
 # ------------------------------------------------------------------------------
 
+def optuna_p2p_argparse():
+
+    parser = argparse.ArgumentParser(
+        prog = 'Optuna P2P instance',
+        description = 'Optuna distributed over the LearnToShare peer-to-peer framework',
+        epilog = 'https://github.com/lcudenne/learntoshare')
+
+    parser.add_argument("-r", "--nrounds", type=int, default=4, required=False,
+                        help="number of rounds, each round composed by t trials and a broadcast of the current best solution")
+    parser.add_argument("-t", "--ntrials", type=int, default=10, required=False,
+                        help="number of trials per round")
+    parser.add_argument("-u", "--uid", type=str, required=False,
+                        help="unique id for this agent (default a random uuid4)")
+    parser.add_argument("-n", "--name", type=str, required=False,
+                        help="name of the agent (default is the uid)")
+    parser.add_argument("-b", "--bind", type=str, required=False,
+                        help="agent network bind address for incoming messages (default is tcp://*:5555)")
+    parser.add_argument("-a", "--address", type=str, required=False,
+                        help="agent network address to be used by other peers (default is tcp://localhost:5555)")
+    parser.add_argument("-s", "--seeduid", type=str, required=False,
+                        help="unique id of the seed used to bootstrap the P2P overlay (default is our own uid)")
+    parser.add_argument("-d", "--seedaddress", type=str, required=False,
+                        help="network address of the seed to bootstrap the P2P overlay (default is our own address)")
+
+    return parser.parse_args()
+
+
+
+# ------------------------------------------------------------------------------
+
 def objective_function_placeholder(trial):
     logging.info("Optuna objective function not implemented")
     return 0
@@ -29,25 +59,54 @@ class ObjectiveObjectPlaceholder:
 
 class OptunaP2P():
 
-    def __init__(self, args,
+    def __init__(self, parse=False,
                  objective_function=objective_function_placeholder,
                  objective_object=None,
-                 study=None):
+                 study=None,
+                 nrounds=4,
+                 ntrials=10,
+                 uid=None,
+                 name=None,
+                 bind=None,
+                 address=None,
+                 seeduid=None,
+                 seedaddress=None):
+
+        if parse:
+            args = optuna_p2p_argparse()
+            self.nrounds = args.nrounds
+            self.ntrials = args.ntrials
+            self.uid = args.uid
+            self.name = args.name
+            self.bind = args.bind
+            self.address = args.address
+            self.seeduid = args.seeduid
+            self.seedaddress = args.seedaddress
+        else:
+            self.nrounds = nrounds
+            self.ntrials = ntrials
+            self.uid = uid
+            self.name = name
+            self.bind = bind
+            self.address = address
+            self.seeduid = seeduid
+            self.seedaddress = seedaddress
+
         self.objective_function = objective_function
         self.objective_object = objective_object
         self.study = study
         self.pending_trials = queue.Queue()
         LTS_Common()
-        self.overlay = LTS_Agent(agent_uuid=args.uid,
-                                 name=args.name,
-                                 zmq_bind=args.bind,
-                                 zmq_address=args.address,
-                                 zmq_seed_uuid=args.seeduid,
-                                 zmq_seed_address=args.seedaddress,
+        self.overlay = LTS_Agent(agent_uuid=self.uid,
+                                 name=self.name,
+                                 zmq_bind=self.bind,
+                                 zmq_address=self.address,
+                                 zmq_seed_uuid=self.seeduid,
+                                 zmq_seed_address=self.seedaddress,
                                  dispatch_handler=self)
-        self.ntrials_per_round = args.ntrials
-        self.nrounds = args.nrounds
-        print("LTS agent", self.overlay.toJSON())
+        self.ntrials_per_round = self.ntrials
+        self.nrounds = self.nrounds
+        print(self.overlay.toJSON())
 
     def terminate(self):
         self.overlay.terminate()
@@ -116,36 +175,11 @@ class OptunaP2P():
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(
-        prog = 'optuna_p2p.py',
-        description = 'Optimization skeleton using Optuna over the LTS peer-to-peer framework',
-        epilog = 'https://github.com/lcudenne/learntoshare')
-
-    parser.add_argument("-r", "--nrounds", type=int, default=0, required=False,
-                        help="number of rounds, each round composed by t trials and a broadcast of the current best solution")
-    parser.add_argument("-t", "--ntrials", type=int, default=0, required=False,
-                        help="number of trials per round")
-    parser.add_argument("-u", "--uid", type=str, required=False,
-                        help="unique id for this agent (default a random uuid4)")
-    parser.add_argument("-n", "--name", type=str, required=False,
-                        help="name of the agent (default is the uid)")
-    parser.add_argument("-b", "--bind", type=str, required=False,
-                        help="agent network bind address for incoming messages (default is tcp://*:5555)")
-    parser.add_argument("-a", "--address", type=str, required=False,
-                        help="agent network address to be used by other peers (default is tcp://localhost:5555)")
-    parser.add_argument("-s", "--seeduid", type=str, required=False,
-                        help="unique id of the seed used to bootstrap the P2P overlay (default is our own uid)")
-    parser.add_argument("-d", "--seedaddress", type=str, required=False,
-                        help="network address of the seed to bootstrap the P2P overlay (default is our own address)")
-    
-
-    args = parser.parse_args()
-
-    optuna_agent = OptunaP2P(args=args, objective_function=objective_function_placeholder)
+    optuna_agent = OptunaP2P(parse=True, objective_function=objective_function_placeholder)
     optuna_agent.optimize()
     optuna_agent.terminate()
 
-    optuna_agent = OptunaP2P(args=args, objective_object=ObjectiveObjectPlaceholder())
+    optuna_agent = OptunaP2P(parse=True, objective_object=ObjectiveObjectPlaceholder())
     optuna_agent.optimize()
     optuna_agent.terminate()
 
