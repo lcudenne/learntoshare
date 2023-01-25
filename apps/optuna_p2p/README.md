@@ -82,7 +82,7 @@ the `terminate` asks for a distributed termination of the P2P overlay.
 
 
 ```python
-    optuna_agent = OptunaP2P(args=args, objective_function=objective_function)
+    optuna_agent = OptunaP2P(parse=True, objective_function=objective_function)
     optuna_agent.optimize()
     optuna_agent.terminate()
 ```
