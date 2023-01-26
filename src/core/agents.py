@@ -16,7 +16,8 @@ class LTS_Agent(LTS_BaseClass):
                  zmq_seed_uuid=None, zmq_seed_address=None, zmq_recv_timeout_sec=10,
                  running = True,
                  dispatch_handler = None,
-                 heartbeat_timer_sec=8):
+                 heartbeat_timer_sec = 8,
+                 broadcast_terminate = True):
 
         super().__init__("LTS_Agent")
         self.uuid = agent_uuid or str(uuid.uuid4())
@@ -32,15 +33,17 @@ class LTS_Agent(LTS_BaseClass):
 
         self.heartbeat_timer_sec = heartbeat_timer_sec
 
-        self.pid_com = None
+        self.broadcast_terminate = broadcast_terminate
+        
+        self.pid_agt = None
         self.pid_net = None
 
         self.running_lock = threading.Lock()
         self.setRunning(running)
         
         if self.getRunning():
-            self.pid_com = threading.Thread(target=self.run_com)
-            self.pid_com.start()
+            self.pid_agt = threading.Thread(target=self.run_agt)
+            self.pid_agt.start()
             self.pid_net = threading.Thread(target=self.run_net)
             self.pid_net.start()
 
@@ -61,8 +64,8 @@ class LTS_Agent(LTS_BaseClass):
         self.running_lock.release()
 
 
-    def run_com(self):
-        logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") running on " + self.communicator.zmq_address)
+    def run_agt(self):
+        logging.info("[AGT] Agent " + self.uuid + " (" + self.name + ") running on " + self.communicator.zmq_address)
         while self.getRunning():
             self.communicator.zmq_socket_rep.RCVTIMEO = self.communicator.zmq_recv_timeout
             data_recv = None
@@ -70,19 +73,23 @@ class LTS_Agent(LTS_BaseClass):
                 data_recv = self.communicator.zmq_socket_rep.recv_string()
             except zmq.ZMQError as e:
                 if e.errno == zmq.EAGAIN:
-                    logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") recv timeout")
+                    logging.info("[AGT] Agent " + self.uuid + " (" + self.name + ") recv timeout")
                     self.setRunning(False)
+
             if data_recv:
                 message = self.communicator.processMessage(data_recv)
                 response = self.dispatchMessage(message)
                 self.communicator.zmq_socket_rep.send_string(response.toJSON())
 
-        message = LTS_Message(LTS_MessageType.CORE_TERMINATE,
-                              from_uuid=self.uuid)
-        self.communicator.broadcastMessage(message)
+        if self.broadcast_terminate:
+            logging.info("[AGT] Agent " + self.uuid + " (" + self.name + ") broadcast terminate")
+            message = LTS_Message(LTS_MessageType.CORE_TERMINATE,
+                                  from_uuid=self.uuid)
+            self.communicator.broadcastMessage(message)
+
         self.pid_net.join()
-        del self.communicator
-        logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") terminating")
+        self.communicator.zmq_socket_rep.close()
+        logging.info("[AGT] Agent " + self.uuid + " (" + self.name + ") terminating")
 
 
     def run_net(self):
@@ -97,7 +104,7 @@ class LTS_Agent(LTS_BaseClass):
 
 
     def dispatchMessage(self, message):
-        logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") received message " + str(message.message_type) + " from " + message.from_uuid)
+        logging.info("[AGT] Agent " + self.uuid + " (" + self.name + ") received message " + str(message.message_type) + " from " + message.from_uuid)
         response = LTS_Message(LTS_MessageType.CORE_ACK,
                                from_uuid=self.uuid, to_uuid=message.from_uuid)
 
@@ -117,11 +124,11 @@ class LTS_Agent(LTS_BaseClass):
                 response = self.dispatch_handler.dispatchMessage(message) or response
 
             else:
-                logging.error("[COM] Agent " + self.uuid + " (" + self.name + ") received message from " + message.from_uuid + " with type " + str(message.message_type) + " but no dispatch handler is set")
+                logging.error("[AGT] Agent " + self.uuid + " (" + self.name + ") received message from " + message.from_uuid + " with type " + str(message.message_type) + " but no dispatch handler is set")
 
 
         else:
-            logging.error("[COM] Agent " + self.uuid + " (" + self.name + ") received message from " + message.from_uuid + " with unknown type " + str(message.message_type))
+            logging.error("[AGT] Agent " + self.uuid + " (" + self.name + ") received message from " + message.from_uuid + " with unknown type " + str(message.message_type))
             self.setRunning(False)
 
         return response
@@ -130,8 +137,7 @@ class LTS_Agent(LTS_BaseClass):
 
     def terminate(self):
         self.setRunning(False)
-        self.pid_net.join()
-        self.pid_com.join()
+        self.pid_agt.join()
 
 
 # ------------------------------------------------------------------------------
@@ -150,7 +156,7 @@ if __name__ == "__main__":
     alice = LTS_Agent(alice_uuid, "Alice",
                       zmq_bind="tcp://*:5556", zmq_address="tcp://localhost:5556",
                       zmq_seed_uuid=charles_uuid, zmq_seed_address=charles_address,
-                      running = True)
+                      running = True, broadcast_terminate = True)
 
     bob = LTS_Agent(str(uuid.uuid4()), "Bob",
                     zmq_bind="tcp://*:5557", zmq_address="tcp://localhost:5557",

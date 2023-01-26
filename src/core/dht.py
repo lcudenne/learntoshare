@@ -16,7 +16,7 @@ class LTS_DHTEntry(LTS_BaseClass):
         self.zmq_address = zmq_address
         self.latency_us = latency_us
         self.timestamp_create = datetime.now()
-        
+
 # ------------------------------------------------------------------------------
 
 class LTS_DHT(LTS_BaseClass):
@@ -34,6 +34,15 @@ class LTS_DHT(LTS_BaseClass):
         self.dht_lock.release()
         logging.info("[DHT] Peer " + self.uuid + " DHT ADD " + uuid + " " + zmq_address)
 
+    def remove(self, uuid):
+        res = None
+        self.dht_lock.acquire()
+        if uuid in self.dht:
+            res = self.dht[uuid]
+            logging.info("[DHT] Peer " + self.uuid + " DHT REMOVE " + uuid + " " + res.zmq_address)
+            del self.dht[uuid]
+        self.dht_lock.release()
+        return res
 
     def getAddress(self, uuid):
         res = None
@@ -72,7 +81,17 @@ class LTS_DHT(LTS_BaseClass):
                 best_uuid = key
         self.dht_lock.release()
         return best_uuid, best_address
-                
+
+    def getUuidList(self):
+        res = list()
+        self.dht_lock.acquire()        
+        for key, _ in self.dht.items():
+            if key != self.uuid:
+                res.append(key)
+        self.dht_lock.release()
+        return res
+
+    
     def toJSON(self):
         res = '{"class_name": "LTS_DHT", "dht": {'
         i = 0

@@ -29,6 +29,7 @@ class LTS_Communicator(LTS_BaseClass):
         self.zmq_context = zmq.Context()
         self.zmq_socket_rep = self.zmq_context.socket(zmq.REP)
         self.zmq_socket_rep.bind(self.zmq_bind)
+
         self.zmq_recv_timeout = zmq_recv_timeout_sec * 1000
 
         self.dht = LTS_DHT(self.uuid)
@@ -39,10 +40,6 @@ class LTS_Communicator(LTS_BaseClass):
         else:
             self.dht.add(self.zmq_seed_uuid, zmq_seed_address)
             self.subscribe(self.zmq_seed_uuid)
-
-    def __del__(self):
-        self.zmq_socket_rep.close()
-        self.zmq_context.destroy()
 
 
 
@@ -74,17 +71,19 @@ class LTS_Communicator(LTS_BaseClass):
             except zmq.ZMQError as e:
                 if e.errno == zmq.EAGAIN:
                     logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") recv timeout")
-            socket.close()
+                    self.dht.remove(to_uuid)
             if data_recv:
-                response.fromJSON(data_recv)
                 end = datetime.now()
                 latency = end - start
                 self.dht.setLatency(to_uuid, latency.microseconds)
+                response.fromJSON(data_recv)
                 logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") latency " + str(latency.microseconds) + " microseconds with " + to_uuid)
 
         else:
             logging.warning("[COM] Agent " + self.uuid + " (" + self.name + ") send to agent " + str(to_uuid) + " not in DHT")
 
+        socket.close()
+            
         return response
 
 
@@ -94,10 +93,10 @@ class LTS_Communicator(LTS_BaseClass):
         return self.sendMessage(to_uuid, message)
     
     def broadcastMessage(self, message):
-        for key, value in self.dht.dht.items():
-            if value.uuid != self.uuid:
-                message.to_uuid = value.uuid
-                self.sendMessage(message.to_uuid, message)
+        uuid_list = self.dht.getUuidList()
+        for to_uuid in uuid_list:
+            message.to_uuid = to_uuid
+            self.sendMessage(message.to_uuid, message)
 
     def broadcast(self, content):
         message = LTS_Message(LTS_MessageType.USER_DEFINED, content=content, from_uuid=self.uuid)
@@ -105,17 +104,18 @@ class LTS_Communicator(LTS_BaseClass):
 
     # ask a peer for another peer
     def populate(self):
+        res = None
         best_uuid, _ = self.dht.getPeerBestLatency()
-        message = LTS_Message(LTS_MessageType.DHT_GET_PEER,
-                              from_uuid=self.uuid, to_uuid = best_uuid)
-        response = self.sendMessage(message.to_uuid, message)
-        response_json = json.loads(json.loads(response.toJSON())['content'])
-        if response_json and 'uuid' in response_json:
-            self.dht.add(response_json['uuid'], response_json['address'])
-            logging.info("[NET] Agent " + self.uuid + " (" + self.name + ") added " + response_json['uuid'] + " (" + response_json['address'] + ") to DHT")
-            return response_json['uuid']
-        else:
-            return None
+        if best_uuid:
+            message = LTS_Message(LTS_MessageType.DHT_GET_PEER,
+                                  from_uuid=self.uuid, to_uuid = best_uuid)
+            response = self.sendMessage(message.to_uuid, message)
+            if response.message_type == LTS_MessageType.CORE_RESPONSE:
+                response_json = json.loads(json.loads(response.toJSON())['content'])
+                if response_json and 'uuid' in response_json:
+                    self.dht.add(response_json['uuid'], response_json['address'])
+                    res = response_json['uuid']
+        return res
 
 
     
