@@ -1,3 +1,6 @@
+
+import threading
+
 from datetime import datetime
 
 from src.core.common import *
@@ -22,52 +25,65 @@ class LTS_DHT(LTS_BaseClass):
         super().__init__("LTS_DHT")
         self.uuid = dht_uuid
         self.dht = dict()
+        self.dht_lock = threading.Lock()
 
     def add(self, uuid, zmq_address, latency_us=0):
         entry = LTS_DHTEntry(uuid, zmq_address, latency_us)
+        self.dht_lock.acquire()
         self.dht[uuid] = entry
+        self.dht_lock.release()
         logging.info("[DHT] Peer " + self.uuid + " DHT ADD " + uuid + " " + zmq_address)
 
 
     def getAddress(self, uuid):
         res = None
+        self.dht_lock.acquire()
         if uuid in self.dht:
             res = self.dht[uuid].zmq_address
+        self.dht_lock.release()
         return res
 
     def getLatency(self, uuid):
         res = None
+        self.dht_lock.acquire()
         if uuid in self.dht:
             res = self.dht[uuid].latency_us
+        self.dht_lock.release()
         return res
 
     def setLatency(self, uuid, latency_us):
         res = None
+        self.dht_lock.acquire()
         if uuid in self.dht:
             res = self.dht[uuid].latency_us
             self.dht[uuid].latency_us = latency_us
+        self.dht_lock.release()
         return res
 
     def getPeerBestLatency(self, avoid_uuid=None):
         best_latency = None
         best_address = None
         best_uuid = None
+        self.dht_lock.acquire()
         for key, value in self.dht.items():
             if key != avoid_uuid and key != self.uuid and (best_latency is None or (value.latency_us < best_latency and value.latency_us != 0)):
                 best_latency = value.latency_us
                 best_address = value.zmq_address
                 best_uuid = key
+        self.dht_lock.release()
         return best_uuid, best_address
                 
     def toJSON(self):
         res = '{"class_name": "LTS_DHT", "dht": {'
         i = 0
+        self.dht_lock.acquire()
         for key, value in self.dht.items():
             res = res + '"'+str(key)+'": {"uuid": "'+str(value.uuid)+'", "zmq_address": "'+str(value.zmq_address)+'", "latency_us": '+str(value.latency_us)+', "timestamp_create": "'+str(value.timestamp_create)+'"}'
             i = i + 1
             if i < len(self.dht):
                 res = res + ', '
         res = res + '}}'
+        self.dht_lock.release()
         return json.dumps(json.loads(res), sort_keys=True, indent=4)
 
     def dispatchGetPeer(self, message: LTS_Message):

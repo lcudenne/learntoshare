@@ -77,6 +77,11 @@ class LTS_Agent(LTS_BaseClass):
                 response = self.dispatchMessage(message)
                 self.communicator.zmq_socket_rep.send_string(response.toJSON())
 
+        message = LTS_Message(LTS_MessageType.CORE_TERMINATE,
+                              from_uuid=self.uuid)
+        self.communicator.broadcastMessage(message)
+        self.pid_net.join()
+        del self.communicator
         logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") terminating")
 
 
@@ -97,7 +102,7 @@ class LTS_Agent(LTS_BaseClass):
                                from_uuid=self.uuid, to_uuid=message.from_uuid)
 
         if message.message_type == LTS_MessageType.CORE_TERMINATE:
-            self.terminate()
+            self.setRunning(False)
 
         elif message.message_type == LTS_MessageType.DHT_GET_PEER:
             response = self.communicator.dht.dispatchGetPeer(message)
@@ -117,25 +122,17 @@ class LTS_Agent(LTS_BaseClass):
 
         else:
             logging.error("[COM] Agent " + self.uuid + " (" + self.name + ") received message from " + message.from_uuid + " with unknown type " + str(message.message_type))
-            self.terminate()
+            self.setRunning(False)
 
         return response
             
 
 
-
     def terminate(self):
-        message = LTS_Message(LTS_MessageType.CORE_TERMINATE,
-                              from_uuid=self.uuid)
-        self.communicator.broadcastMessage(message)
         self.setRunning(False)
-        self.pid_com.join()
         self.pid_net.join()
-        del self.communicator
+        self.pid_com.join()
 
-
-
-        
 
 # ------------------------------------------------------------------------------
 

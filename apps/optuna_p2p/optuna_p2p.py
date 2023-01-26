@@ -166,8 +166,10 @@ class OptunaP2P():
             print("Round {} best value: {} (params: {})\n".format(r, self.study.best_value, self.study.best_params))
 
             # broadcast best trial to other peers
-            content = '{"best_value": ' + str(self.study.best_value) + ', "best_params": ' + str(self.study.best_params).replace("'", "\"") + ', "param_types": ' + str(self.bestParamsTypes(self.study.best_params)).replace("'", "\"") + '}'
-            self.overlay.communicator.broadcast(content)
+            if self.overlay.getRunning():
+                content = '{"best_value": ' + str(self.study.best_value) + ', "best_params": ' + str(self.study.best_params).replace("'", "\"") + ', "param_types": ' + str(self.bestParamsTypes(self.study.best_params)).replace("'", "\"") + '}'
+                print("Broadcast", content, "to neighbors")
+                self.overlay.communicator.broadcast(content)
 
 
 # ------------------------------------------------------------------------------
