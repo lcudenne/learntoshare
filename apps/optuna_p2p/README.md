@@ -1,5 +1,12 @@
 # Optuna Peer-to-peer (P2P) examples
 
+[Optuna](https://github.com/optuna/optuna) is an automatic hyperparameter optimization software framework, particularly designed for machine learning.
+Distributing Optuna among computing nodes allows to explore more solutions (hereinafter referred to as trials) or significantly decrease the compute time.
+The Optuna builtin approach relies on a centralized database server onto which instances of the optimizer share results and best values. This has shown to limit the scalability of the system when coping with hundreds of optimizing instances for a high number of trials.
+
+In this approach, we propose a fully decentralized system in which optimizing instances eventually share their best values using group communication protocols.
+
+
 ## Cold start
 
 Set your virtual environment.
@@ -85,6 +92,12 @@ the `terminate` asks for a distributed termination of the P2P overlay.
     optuna_agent = OptunaP2P(parse=True, objective_function=objective_function)
     optuna_agent.optimize()
     optuna_agent.terminate()
+```
+
+Note that it is also possible to use an Optimize Class instead of a function:
+
+```python
+    optuna_agent = OptunaP2P(parse=True, objective_object=ObjectiveObject(at_pow=2))
 ```
 
 ### Colocated deployment
