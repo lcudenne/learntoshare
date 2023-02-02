@@ -85,7 +85,8 @@ In the `__main__` function, an OptunaP2P agent is instantiated with
 several arguments and a reference to the user-defined optimization
 function. This step bootstraps the P2P network. The `optimize` method
 starts the optimization loop for `r` rounds of `t` trials. Finally,
-the `terminate` asks for a distributed termination of the P2P overlay.
+the `terminate` method asks for a distributed termination of the P2P
+overlay.
 
 
 ```python

@@ -49,12 +49,5 @@ if __name__ == "__main__":
     sleep(20)
     peer.terminate()
 
-    for peer in peer_list:
-        if peer.pid_com:
-            peer.pid_com.join()
-        if peer.pid_net:
-            peer.pid_net.join()
-        print(peer.toJSON())
-
         
     exit(0)

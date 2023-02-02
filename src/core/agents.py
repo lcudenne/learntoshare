@@ -6,6 +6,7 @@ from time import sleep
 
 from src.core.common import *
 from src.core.communicator import *
+from src.core.rpc import LTS_RPC
 
 # ------------------------------------------------------------------------------
 
@@ -31,6 +32,9 @@ class LTS_Agent(LTS_BaseClass):
                                              zmq_seed_uuid, zmq_seed_address,
                                              zmq_recv_timeout_sec)
 
+        self.rpc = LTS_RPC(rpc_uuid=self.uuid, communicator=self.communicator)
+
+        
         self.heartbeat_timer_sec = heartbeat_timer_sec
 
         self.broadcast_terminate = broadcast_terminate
@@ -74,6 +78,7 @@ class LTS_Agent(LTS_BaseClass):
             except zmq.ZMQError as e:
                 if e.errno == zmq.EAGAIN:
                     logging.info("[AGT] Agent " + self.uuid + " (" + self.name + ") recv timeout")
+                    self.rpc.terminate()
                     self.setRunning(False)
 
             if data_recv:
@@ -109,6 +114,7 @@ class LTS_Agent(LTS_BaseClass):
                                from_uuid=self.uuid, to_uuid=message.from_uuid)
 
         if message.message_type == LTS_MessageType.CORE_TERMINATE:
+            self.rpc.terminate()
             self.setRunning(False)
 
         elif message.message_type == LTS_MessageType.DHT_GET_PEER:
@@ -129,6 +135,7 @@ class LTS_Agent(LTS_BaseClass):
 
         else:
             logging.error("[AGT] Agent " + self.uuid + " (" + self.name + ") received message from " + message.from_uuid + " with unknown type " + str(message.message_type))
+            self.rpc.terminate()
             self.setRunning(False)
 
         return response
@@ -136,6 +143,7 @@ class LTS_Agent(LTS_BaseClass):
 
 
     def terminate(self):
+        self.rpc.terminate()
         self.setRunning(False)
         self.pid_agt.join()
 
