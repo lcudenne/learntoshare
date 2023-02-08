@@ -70,17 +70,17 @@ class LTS_Communicator(LTS_BaseClass):
                 data_recv = socket.recv_string()
             except zmq.ZMQError as e:
                 if e.errno == zmq.EAGAIN:
-                    logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") recv timeout")
+                    logging.info("[COM] "+self.uuid+" Agent recv timeout")
                     self.dht.remove(to_uuid)
             if data_recv:
                 end = datetime.now()
                 latency = end - start
                 self.dht.setLatency(to_uuid, latency.microseconds)
                 response.fromJSON(data_recv)
-                logging.info("[COM] Agent " + self.uuid + " (" + self.name + ") latency " + str(latency.microseconds) + " microseconds with " + to_uuid)
+                logging.info("[COM] "+self.uuid+" Agent latency " + str(latency.microseconds) + " microseconds with " + to_uuid)
 
         else:
-            logging.warning("[COM] Agent " + self.uuid + " (" + self.name + ") send to agent " + str(to_uuid) + " not in DHT")
+            logging.warning("[COM] "+self.uuid+" Agent send to agent " + str(to_uuid) + " not in DHT")
 
         socket.close()
             

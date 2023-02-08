@@ -32,14 +32,14 @@ class LTS_DHT(LTS_BaseClass):
         self.dht_lock.acquire()
         self.dht[uuid] = entry
         self.dht_lock.release()
-        logging.info("[DHT] Peer " + self.uuid + " DHT ADD " + uuid + " " + zmq_address)
+        logging.info("[DHT] "+self.uuid+" Peer DHT ADD " + uuid + " " + zmq_address)
 
     def remove(self, uuid):
         res = None
         self.dht_lock.acquire()
         if uuid in self.dht:
             res = self.dht[uuid]
-            logging.info("[DHT] Peer " + self.uuid + " DHT REMOVE " + uuid + " " + res.zmq_address)
+            logging.info("[DHT] "+self.uuid+" Peer DHT REMOVE " + uuid + " " + res.zmq_address)
             del self.dht[uuid]
         self.dht_lock.release()
         return res

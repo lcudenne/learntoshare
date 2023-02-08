@@ -69,7 +69,7 @@ class LTS_Agent(LTS_BaseClass):
 
 
     def run_agt(self):
-        logging.info("[AGT] Agent " + self.uuid + " (" + self.name + ") running on " + self.communicator.zmq_address)
+        logging.info("[AGT] "+self.uuid+" Agent running on " + self.communicator.zmq_address)
         while self.getRunning():
             self.communicator.zmq_socket_rep.RCVTIMEO = self.communicator.zmq_recv_timeout
             data_recv = None
@@ -77,7 +77,7 @@ class LTS_Agent(LTS_BaseClass):
                 data_recv = self.communicator.zmq_socket_rep.recv_string()
             except zmq.ZMQError as e:
                 if e.errno == zmq.EAGAIN:
-                    logging.info("[AGT] Agent " + self.uuid + " (" + self.name + ") recv timeout")
+                    logging.info("[AGT] "+self.uuid+" Agent recv timeout")
                     self.rpc.terminate()
                     self.setRunning(False)
 
@@ -87,29 +87,29 @@ class LTS_Agent(LTS_BaseClass):
                 self.communicator.zmq_socket_rep.send_string(response.toJSON())
 
         if self.broadcast_terminate:
-            logging.info("[AGT] Agent " + self.uuid + " (" + self.name + ") broadcast terminate")
+            logging.info("[AGT] "+self.uuid+" Agent broadcast terminate")
             message = LTS_Message(LTS_MessageType.CORE_TERMINATE,
                                   from_uuid=self.uuid)
             self.communicator.broadcastMessage(message)
 
         self.pid_net.join()
         self.communicator.zmq_socket_rep.close()
-        logging.info("[AGT] Agent " + self.uuid + " (" + self.name + ") terminating")
+        logging.info("[AGT] "+self.uuid+" Agent terminating")
 
 
     def run_net(self):
-        logging.info("[NET] Agent " + self.uuid + " (" + self.name + ") building network overlay")
+        logging.info("[NET] "+self.uuid+" Agent building network overlay")
         while self.getRunning():
             sleep(self.heartbeat_timer_sec)
             new_uuid = self.communicator.populate()
             if new_uuid:
                 self.communicator.subscribe(new_uuid)
             
-        logging.info("[NET] Agent " + self.uuid + " (" + self.name + ") terminating")
+        logging.info("[NET] "+self.uuid+" Agent terminating")
 
 
     def dispatchMessage(self, message):
-        logging.info("[AGT] Agent " + self.uuid + " (" + self.name + ") received message " + str(message.message_type) + " from " + message.from_uuid)
+        logging.info("[AGT] "+self.uuid+" Agent received message " + str(message.message_type) + " from " + message.from_uuid + " content " + message.content)
         response = LTS_Message(LTS_MessageType.CORE_ACK,
                                from_uuid=self.uuid, to_uuid=message.from_uuid)
 
@@ -125,16 +125,23 @@ class LTS_Agent(LTS_BaseClass):
             if content_json and 'uuid' in content_json:
                 self.communicator.dht.add(content_json['uuid'], content_json['address'])
 
+        elif message.message_type == LTS_MessageType.RPC_CALL:
+            content_json = json.loads(message.content)
+            self.rpc.addInstance(name=content_json['procedure'],
+                                 params_json=str(content_json['parameters']),
+                                 rpc_uuid=content_json['rpc_uuid'],
+                                 from_uuid=message.from_uuid)
+                
         elif message.message_type == LTS_MessageType.USER_DEFINED or message.message_type.startswith("DSM_"):
             if self.dispatch_handler:
                 response = self.dispatch_handler.dispatchMessage(message) or response
 
             else:
-                logging.error("[AGT] Agent " + self.uuid + " (" + self.name + ") received message from " + message.from_uuid + " with type " + str(message.message_type) + " but no dispatch handler is set")
+                logging.error("[AGT] "+self.uuid+" Agent received message from " + message.from_uuid + " with type " + str(message.message_type) + " but no dispatch handler is set")
 
 
         else:
-            logging.error("[AGT] Agent " + self.uuid + " (" + self.name + ") received message from " + message.from_uuid + " with unknown type " + str(message.message_type))
+            logging.error("[AGT] "+self.uuid+" Agent received message from " + message.from_uuid + " with unknown type " + str(message.message_type))
             self.rpc.terminate()
             self.setRunning(False)
 

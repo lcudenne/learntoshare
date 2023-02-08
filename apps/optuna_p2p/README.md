@@ -13,7 +13,7 @@ Set your virtual environment.
 
 ```bash
 $ cd apps/optuna_p2p
-$ virtualenv -p python3 venv
+$ python3 -m venv venv
 $ source venv/bin/activate
 (venv) $ pip install -r ../../requirements.txt
 (venv) $ pip install -r requirements.txt

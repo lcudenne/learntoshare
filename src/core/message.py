@@ -18,7 +18,7 @@ class LTS_MessageType(str, Enum):
     DSM_CHUNK_ADVERTIZE="DSM_CHUNK_ADVERTIZE"
     DSM_CHUNK_GET="DSM_CHUNK_GET"
     RPC_CALL="RPC_CALL"
-    RPC_RESPONSE="RPC_RESPONSE"
+    RPC_RESULTS="RPC_RESULTS"
 
 # ------------------------------------------------------------------------------
 
