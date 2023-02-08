@@ -15,7 +15,7 @@ def draw_overlay(filenames):
             for line in logfile:
                 if "DHT ADD" in line:
                     linesplit = line.rstrip().split(' ')
-                    node_from = linesplit[9]
+                    node_from = linesplit[8]
                     node_to = linesplit[12]
                     G.add_edge(node_from, node_to)
                     print(node_from, "to", node_to)
