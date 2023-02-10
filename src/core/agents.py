@@ -78,8 +78,6 @@ class LTS_Agent(LTS_BaseClass):
             except zmq.ZMQError as e:
                 if e.errno == zmq.EAGAIN:
                     logging.info("[AGT] "+self.uuid+" Agent recv timeout")
-                    self.rpc.terminate()
-                    self.setRunning(False)
 
             if data_recv:
                 message = self.communicator.processMessage(data_recv)

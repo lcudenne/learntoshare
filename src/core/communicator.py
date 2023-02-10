@@ -77,7 +77,7 @@ class LTS_Communicator(LTS_BaseClass):
                 latency = end - start
                 self.dht.setLatency(to_uuid, latency.microseconds)
                 response.fromJSON(data_recv)
-                logging.info("[COM] "+self.uuid+" Agent latency " + str(latency.microseconds) + " microseconds with " + to_uuid)
+                logging.info("[COM] "+self.uuid+" Agent latency " + str(int(latency.microseconds / 1000)) + " milliseconds with " + to_uuid)
 
         else:
             logging.warning("[COM] "+self.uuid+" Agent send to agent " + str(to_uuid) + " not in DHT")
