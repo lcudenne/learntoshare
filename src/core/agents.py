@@ -129,6 +129,10 @@ class LTS_Agent(LTS_BaseClass):
                                  params_json=str(content_json['parameters']),
                                  rpc_uuid=content_json['rpc_uuid'],
                                  from_uuid=message.from_uuid)
+
+        elif message.message_type == LTS_MessageType.RPC_RESULTS:
+            content_json = json.loads(message.content)
+            self.rpc.result(content_json)
                 
         elif message.message_type == LTS_MessageType.USER_DEFINED or message.message_type.startswith("DSM_"):
             if self.dispatch_handler:

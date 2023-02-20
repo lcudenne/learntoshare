@@ -56,16 +56,16 @@ if __name__ == "__main__":
         
     peer_list[0].rpc.register(rpc_name, handler_test)
     result_json = peer_list[0].rpc.call(rpc_name)
-    print("RPC returns " + result_json)
+    print("RPC returns " + str(result_json))
 
     result_json = peer_list[1].rpc.call(rpc_name)
-    print("RPC returns " + result_json)
+    print("RPC returns " + str(result_json))
 
     peer_list[1].rpc.registerRemote(rpc_name, peer_list[0].uuid)
     result_json = peer_list[1].rpc.call(rpc_name)
-    print("RPC returns " + result_json)
+    print("RPC returns " + str(result_json))
 
-    sleep(20)
+    sleep(5)
     peer.terminate()
 
         

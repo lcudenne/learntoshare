@@ -49,16 +49,21 @@ class LTS_RPC(LTS_BaseClass):
 
         # get remote callable peer list from procedure name
         # procedure_name : str -> peer_list : list(uuid : str)
-        self.rpc_dict_remote = dict()
+        self.rpc_remote_dict = dict()
 
         # get local callable function from procedure name
         # procedure_name : str -> function_handler : func
         # func : (params_json : str -> results_json : str)
-        self.rpc_dict_local = dict()
+        self.rpc_local_dict = dict()
 
         # manage incoming and outgoing RPC : Queue(LTS_RPC_Instance)
         self.rpc_queue_in = queue.Queue()
         self.rpc_queue_out = queue.Queue()
+
+        # get sync object from RPC request uuid
+        self.rpc_sync_dict = dict()
+        # get result json from RPC request uuid
+        self.rpc_result_dict = dict()
 
         self.pid_sch = None
         self.pid_rsp = None
@@ -93,15 +98,15 @@ class LTS_RPC(LTS_BaseClass):
 
     def register(self, name, handler):
         logging.info("[RPC] "+self.uuid+" Registering procedure " + name + " with handler " + str(handler))
-        self.rpc_dict_local[name] = handler
+        self.rpc_local_dict[name] = handler
 
     def registerRemote(self, name, peer_uuid):
-        if name in self.rpc_dict_remote:
-            self.rpc_dict_remote[name].append(peer_uuid)
+        if name in self.rpc_remote_dict:
+            self.rpc_remote_dict[name].append(peer_uuid)
         else:
             peer_list = list()
             peer_list.append(peer_uuid)
-            self.rpc_dict_remote[name] = peer_list
+            self.rpc_remote_dict[name] = peer_list
 
 
     def run_sch(self):
@@ -136,9 +141,9 @@ class LTS_RPC(LTS_BaseClass):
         
 
     def addInstance(self, name, params_json, rpc_uuid=None, from_uuid=None):
-        if name in self.rpc_dict_local:
+        if name in self.rpc_local_dict:
             rpc_instance = LTS_RPC_Instance(name=name, rpc_obj=self,
-                                            handler=self.rpc_dict_local[name],
+                                            handler=self.rpc_local_dict[name],
                                             params_json=params_json,
                                             rpc_uuid=rpc_uuid,
                                             from_uuid=from_uuid)
@@ -150,20 +155,34 @@ class LTS_RPC(LTS_BaseClass):
     def call(self, name, params_json="{}"):
         logging.info("[RPC] "+self.uuid+" Call procedure " + name)
         results_json = "{}"
-        if name in self.rpc_dict_local:
-            results_json = self.rpc_dict_local[name](params_json)
-        elif name in self.rpc_dict_remote:
+        if name in self.rpc_local_dict:
+            results_json = json.loads(self.rpc_local_dict[name](params_json))
+        elif name in self.rpc_remote_dict:
             rpc_uuid = str(uuid.uuid4())
-            uuid_list = self.rpc_dict_remote[name]
+            uuid_list = self.rpc_remote_dict[name]
             to_uuid = random.choice(uuid_list)
             content = '{"rpc_uuid" : "'+rpc_uuid+'", "procedure" : "'+name+'", "parameters" : '+params_json+'}'
             message = LTS_Message(LTS_MessageType.RPC_CALL, content=content,
                                   from_uuid=self.uuid, to_uuid=to_uuid)
             self.communicator.sendMessage(to_uuid, message)
-            # TODO : register sync request in pending rpc dict 
-
+            self.rpc_sync_dict[rpc_uuid] = threading.Condition()
+            with self.rpc_sync_dict[rpc_uuid]:
+                self.rpc_sync_dict[rpc_uuid].wait()
+            if rpc_uuid in self.rpc_result_dict:
+                results_json = self.rpc_result_dict[rpc_uuid]
+                del self.rpc_result_dict[rpc_uuid]
+            del self.rpc_sync_dict[rpc_uuid]
 
         return results_json
+
+
+    def result(self, content_json):
+        rpc_uuid = content_json['rpc_uuid']
+        results_json = content_json['results']
+        self.rpc_result_dict[rpc_uuid] = results_json
+        if rpc_uuid in self.rpc_sync_dict:
+            with self.rpc_sync_dict[rpc_uuid]:
+                self.rpc_sync_dict[rpc_uuid].notifyAll()
 
 
     def terminate(self):
