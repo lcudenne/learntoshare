@@ -1,7 +1,7 @@
 # learntoshare
 https://github.com/lcudenne/learntoshare
 
-Peer-to-peer (P2P) overlay and Distributed shared memory (DSM) testbed
+Peer-to-peer (P2P) overlay, Remote procedure call (RPC) middleware and Distributed shared memory (DSM) testbed
 
 Written in Python using ZeroMQ (0MQ)
 
