@@ -6,6 +6,7 @@ from time import sleep
 
 from src.core.common import *
 from src.core.communicator import *
+from src.core.dsm import LTS_DSM
 from src.core.rpc import LTS_RPC
 
 # ------------------------------------------------------------------------------
@@ -31,6 +32,8 @@ class LTS_Agent(LTS_BaseClass):
                                              zmq_address or "tcp://localhost:5555",
                                              zmq_seed_uuid, zmq_seed_address,
                                              zmq_recv_timeout_sec)
+
+        self.dsm = LTS_DSM(dsm_uuid=self.uuid, communicator=self.communicator)
 
         self.rpc = LTS_RPC(rpc_uuid=self.uuid, communicator=self.communicator)
 

@@ -37,7 +37,7 @@ class LTS_Memory(LTS_BaseClass):
         self.name = name
         self.capacity = capacity
         self.memory = dict()
-        logging.info("Memory " + str(self.uuid) + " (" + self.name + ") with capacity " + str(self.capacity))
+        logging.info("[MEM] "+self.uuid+" Memory with capacity " + str(self.capacity))
 
     def addChunk(self, chunk):
         res = None
