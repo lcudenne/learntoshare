@@ -131,11 +131,14 @@ class LTS_RPC(LTS_BaseClass):
             except queue.Empty:
                 rpc_instance = None
             if rpc_instance:
-                logging.info("[RSP] "+self.uuid+" Sending back results "+rpc_instance.uuid+" procedure " + rpc_instance.name + " to " + str(rpc_instance.from_uuid))
-                content = '{"rpc_uuid" : "'+rpc_instance.uuid+'", "procedure" : "'+rpc_instance.name+'", "results" : '+str(rpc_instance.results_json)+'}'
-                message = LTS_Message(LTS_MessageType.RPC_RESULTS, content=content,
-                                      from_uuid=self.uuid, to_uuid=rpc_instance.from_uuid)
-                self.communicator.sendMessage(rpc_instance.from_uuid, message)
+                if rpc_instance.from_uuid and self.communicator:
+                    logging.info("[RSP] "+self.uuid+" Sending back results "+rpc_instance.uuid+" procedure " + rpc_instance.name + " to " + str(rpc_instance.from_uuid))
+                    content = '{"rpc_uuid" : "'+rpc_instance.uuid+'", "procedure" : "'+rpc_instance.name+'", "results" : '+str(rpc_instance.results_json)+'}'
+                    message = LTS_Message(LTS_MessageType.RPC_RESULTS, content=content,
+                                          from_uuid=self.uuid, to_uuid=rpc_instance.from_uuid)
+                    self.communicator.sendMessage(rpc_instance.from_uuid, message)
+                else:
+                    logging.warning("[RSP] "+self.uuid+" Discarding results "+rpc_instance.uuid+" procedure " + rpc_instance.name + " (unable to send back)")
 
         logging.info("[RSP] "+self.uuid+" RPC response terminating")
         
@@ -209,8 +212,9 @@ if __name__ == "__main__":
 
     rpc = LTS_RPC()
     rpc.register("handler_test", handler_test)
-    rpc.addInstance("fail", "{}")
+    rpc.addInstance("fail", "{}", from_uuid=rpc.uuid)
     rpc.addInstance("handler_test", "{}")
+    rpc.addInstance("handler_test", "{}", from_uuid=rpc.uuid)
     time.sleep(8)
     rpc.terminate()
 
