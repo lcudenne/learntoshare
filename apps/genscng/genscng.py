@@ -40,7 +40,9 @@ def p2p_argparse():
     parser.add_argument("-p", "--sdpassw", type=str, required=False,
                         help="password for automatic1111 stable diffusion service (default is password)")
     parser.add_argument("-o", "--output", type=str, required=False,
-                        help="path to the output image (default is output.png)")
+                        help="path to the output image (default is $PWD/output)")
+    parser.add_argument("-r", "--rounds", type=int, required=False,
+                        help="number of rounds for consensus")
 
     return parser.parse_args()
 
@@ -64,28 +66,20 @@ class SceneDesc(BaseModel):
 
 class GenScnG():
 
-    def __init__(self, parse=False,
-                 uid=None,
-                 name=None,
-                 bind=None,
-                 address=None,
-                 seeduid=None,
-                 seedaddress=None,
-                 stablediffusion="http://127.0.0.1:7860",
-                 sduser="user",
-                 sdpassw="password",
-                 output="output.png"):
+    def __init__(self, parse=False):
 
-        self.uid = uid
-        self.name = name
-        self.bind = bind
-        self.address = address
-        self.seeduid = seeduid
-        self.seedaddress = seedaddress
-        self.stablediffusion = stablediffusion
-        self.sduser = sduser
-        self.sdpassw = sdpassw
-        self.output = output
+        self.uid = None
+        self.name = None
+        self.bind = None
+        self.address = None
+        self.seeduid = None
+        self.seedaddress = None
+        self.stablediffusion = "http://127.0.0.1:7860"
+        self.sduser = "user"
+        self.sdpassw = "password"
+        self.image = None
+        self.output = "output"
+        self.rounds = 1
         
         if parse:
             args = p2p_argparse()
@@ -101,8 +95,12 @@ class GenScnG():
                 self.sduser = args.sduser
             if args.sdpassw:
                 self.sdpassw = args.sdpassw
+            if args.image:
+                self.image = args.image
             if args.output:
                 self.output = args.output
+            if args.rounds:
+                self.rounds = args.rounds
 
         LTS_Common()
         self.overlay = LTS_Agent(agent_uuid=self.uid,
@@ -124,16 +122,16 @@ class GenScnG():
         return None
 
     # ------
-    def imgToGraph(self, imgurl=None):
+    def imgToGraph(self, image=None):
         scenegraph = None
-        if imgurl:
+        if image:
             response: ChatResponse = chat(
                 model='llava:13b',
                 messages=[
                     {
                         'role': 'user',
                         'content': 'Please list all objects, the location of the objects and the relationships between objects using bullet points:',
-                        'images': [imgurl]
+                        'images': [image]
                     },
                 ],
                 format=SceneDesc.model_json_schema()
@@ -177,27 +175,35 @@ class GenScnG():
         response = requests.post(url=self.stablediffusion + "/sdapi/v1/txt2img", json=payload, auth=(self.sduser, self.sdpassw))
         res_json = response.json()
         if "images" in res_json:
-            with open(self.output, 'wb') as f:
+            with open(self.output + "." + self.overlay.name + ".png", 'wb') as f:
                 f.write(base64.b64decode(res_json['images'][0]))
-            
+
+    # ------
+    def run(self):
+        for i in range(self.rounds):
+            localscene = self.imgToGraph(self.image)
+            # TODO: broadcast to neighborhood
+            # TODO: merge scene from neighborhood
+            mergescene = localscene
+        self.sendTo1111(mergescene)
+
+
     
 # ------------------------------------------------------------------------------
 
 
 if __name__ == "__main__":
 
-    args = p2p_argparse()
-    imgurl = None
-    if args.image:
-        imgurl = args.image
-
     genscng = GenScnG(parse=True)
 
-    if imgurl:
-        sceneA = genscng.imgToGraph(imgurl)
-        sceneB = genscng.imgToGraph(imgurl)
-        sceneC = genscng.sceneMerge(sceneA, sceneB)
-        genscng.sendTo1111(sceneC)
+    # TODO: remove once broadcast/merge is implemented
+    # if genscng.image:
+    #     sceneA = genscng.imgToGraph(genscng.image)
+    #     sceneB = genscng.imgToGraph(genscng.image)
+    #     sceneC = genscng.sceneMerge(sceneA, sceneB)
+    #     genscng.sendTo1111(sceneC)
+
+    genscng.run()
 
     genscng.terminate()
     
