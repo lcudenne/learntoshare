@@ -5,10 +5,12 @@ import base64
 
 from ollama import chat
 from ollama import ChatResponse
-from pydantic import BaseModel
+
+from apps.genscng.aiconnector import SceneObj, SceneDesc, AIConnector
 
 from src.core.common import LTS_Common
 from src.core.agents import LTS_Agent
+
 
 # ------------------------------------------------------------------------------
 
@@ -47,19 +49,6 @@ def p2p_argparse():
     return parser.parse_args()
 
 
-# ------------------------------------------------------------------------------
-
-
-class SceneObj(BaseModel):
-    object: str
-    properties: str
-    location: str
-    color: str
-
-class SceneDesc(BaseModel):
-    point_of_view: str
-    lightning: str
-    objects: list[SceneObj]
     
 
 # ------------------------------------------------------------------------------
@@ -112,6 +101,8 @@ class GenScnG():
                                  dispatch_handler=self)
         print(self.overlay.toJSON())
 
+        self.aiconnector = AIConnector()
+
     def terminate(self):
         self.overlay.terminate()
 
@@ -120,26 +111,6 @@ class GenScnG():
         content_json = json.loads(message.content)
         print("Received", content_json, "from", message.from_uuid)
         return None
-
-    # ------
-    def imgToGraph(self, image=None):
-        scenegraph = None
-        if image:
-            response: ChatResponse = chat(
-                model='llava:13b',
-                messages=[
-                    {
-                        'role': 'user',
-                        'content': 'Please list all objects, the location of the objects and the relationships between objects using bullet points:',
-                        'images': [image]
-                    },
-                ],
-                format=SceneDesc.model_json_schema()
-            )
-            print(response.message.content)
-            scenegraph = response.message.content
-            print(SceneDesc.model_validate_json(response.message.content))
-        return scenegraph
 
     # ------
     def objSearch(self, txtdesc, keywords):
@@ -181,7 +152,7 @@ class GenScnG():
     # ------
     def run(self):
         for i in range(self.rounds):
-            localscene = self.imgToGraph(self.image)
+            localscene = self.aiconnector.imgToTxt(self.image)
             # TODO: broadcast to neighborhood
             # TODO: merge scene from neighborhood
             mergescene = localscene
@@ -198,8 +169,8 @@ if __name__ == "__main__":
 
     # TODO: remove once broadcast/merge is implemented
     # if genscng.image:
-    #     sceneA = genscng.imgToGraph(genscng.image)
-    #     sceneB = genscng.imgToGraph(genscng.image)
+    #     sceneA = genscng.aiconnector.imgToTxt(genscng.image)
+    #     sceneB = genscng.aiconnector.imgToTxt(genscng.image)
     #     sceneC = genscng.sceneMerge(sceneA, sceneB)
     #     genscng.sendTo1111(sceneC)
 
