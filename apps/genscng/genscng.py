@@ -1,5 +1,6 @@
 import argparse
 import json
+import queue
 
 from apps.genscng.aiconnector import AIConnector
 
@@ -86,6 +87,9 @@ class GenScnG():
             if args.rounds:
                 self.rounds = args.rounds
 
+
+        self.pending_messages = queue.Queue()
+
         LTS_Common()
         self.overlay = LTS_Agent(agent_uuid=self.uid,
                                  name=self.name,
@@ -104,6 +108,7 @@ class GenScnG():
         
     def dispatchMessage(self, message):
         content_json = json.loads(message.content)
+        self.pending_messages.put(content_json)
         print("Received", content_json, "from", message.from_uuid)
         return None
 
@@ -115,11 +120,17 @@ class GenScnG():
 
     # ------
     def run(self):
+        mergescene = dict()
         for i in range(self.rounds):
             localscene = self.aiconnector.imgToTxt(imagefile=self.image, placeholder=True)
-            # TODO: broadcast to neighborhood
-            # TODO: merge scene from neighborhood
-            mergescene = localscene
+            self.overlay.communicator.broadcast(json.dumps(localscene))
+            if len(mergescene) == 0:
+                mergescene = localscene
+            else:
+                mergescene = self.aiconnector.sceneMerge(mergescene, localscene)
+            while not self.pending_messages.empty():
+                message_json = self.pending_messages.get()
+                mergescene = self.aiconnector.sceneMerge(mergescene, message_json)
         prompt=json.dumps(mergescene)
         self.aiconnector.sendTo1111(prompt=prompt, output=self.output + "." + self.overlay.name + ".png")
 
