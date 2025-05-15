@@ -8,6 +8,7 @@ import datetime
 import base64
 import requests
 
+from random import randint
 from pydantic import BaseModel
 
 from ollama import chat
@@ -71,21 +72,31 @@ class AIConnector():
         self.targetdir = os.path.realpath(self.targetdir)
 
 
-    def imgToTxt(self, image=None):
+    def imgToTxt(self, imagefile=None, placeholder=False):
         scenegraph = None
-        if image:
-            response: ChatResponse = chat(
-                model='llava:13b',
-                messages=[
-                    {
-                        'role': 'user',
-                        'content': 'Please list all objects, the location of the objects and the relationships between objects using bullet points:',
-                        'images': [image]
-                    },
-                ],
-                format=SceneDesc.model_json_schema()
-            )
-            scenegraph = json.loads(response.message.content)
+        if imagefile:
+            if placeholder:
+                jsonfile = os.path.splitext(imagefile)[0] + ".json"
+                if os.path.isfile(jsonfile):
+                    with open(jsonfile) as f:
+                        jsondata = json.load(f)
+                        if jsondata['descriptions']:
+                            if len(jsondata['descriptions']) > 0:
+                                scenegraph = jsondata['descriptions'][randint(0, len(jsondata['descriptions']) - 1)]
+            if scenegraph is None:
+                response: ChatResponse = chat(
+                    model='llava:13b',
+                    messages=[
+                        {
+                            'role': 'user',
+                            'content': 'Please list all objects, the location of the objects and the relationships between objects using bullet points:',
+                            'images': [imagefile]
+                        },
+                    ],
+                    format=SceneDesc.model_json_schema()
+                )
+                scenegraph = json.loads(response.message.content)
+
         return scenegraph
 
 
@@ -122,7 +133,7 @@ class AIConnector():
                 f.write(base64.b64decode(res_json['images'][0]))
 
 
-    def run(self):
+    def populate(self):
         print("Populating " + self.targetdir)
         filelist = []
         for ftype in self.filetypes:
@@ -134,7 +145,7 @@ class AIConnector():
                 with open(jsonfile) as f:
                     jsondata = json.load(f)
             for i in tqdm.trange(self.iterations, desc=os.path.basename(imagefile)):
-                scenegraph = self.imgToTxt(image=imagefile)
+                scenegraph = self.imgToTxt(imagefile=imagefile)
                 timestamp = datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S")
                 jsonadd = json.loads('{"timestamp": "'+timestamp+'", "content": {}}')
                 jsonadd['content'] = scenegraph
@@ -151,6 +162,6 @@ if __name__ == "__main__":
 
     aiconnector = AIConnector(parse=True)
 
-    aiconnector.run()
+    aiconnector.populate()
 
     exit(0)

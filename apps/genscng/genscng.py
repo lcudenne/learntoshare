@@ -116,7 +116,7 @@ class GenScnG():
     # ------
     def run(self):
         for i in range(self.rounds):
-            localscene = self.aiconnector.imgToTxt(self.image)
+            localscene = self.aiconnector.imgToTxt(imagefile=self.image, placeholder=True)
             # TODO: broadcast to neighborhood
             # TODO: merge scene from neighborhood
             mergescene = localscene
