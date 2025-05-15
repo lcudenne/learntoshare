@@ -1,12 +1,7 @@
 import argparse
 import json
-import requests
-import base64
 
-from ollama import chat
-from ollama import ChatResponse
-
-from apps.genscng.aiconnector import SceneObj, SceneDesc, AIConnector
+from apps.genscng.aiconnector import AIConnector
 
 from src.core.common import LTS_Common
 from src.core.agents import LTS_Agent
@@ -35,16 +30,16 @@ def p2p_argparse():
                         help="network address of the seed to bootstrap the P2P overlay (default is our own address)")
     parser.add_argument("-i", "--image", type=str, required=False,
                         help="path to an input single image")
+    parser.add_argument("-o", "--output", type=str, required=False,
+                        help="path to the output image (default is $PWD/output)")
+    parser.add_argument("-r", "--rounds", type=int, required=False,
+                        help="number of rounds for consensus")
     parser.add_argument("-j", "--stablediffusion", type=str, required=False,
                         help="http address to automatic1111 stable diffusion service (default is http://127.0.0.1:7860)")
     parser.add_argument("-w", "--sduser", type=str, required=False,
                         help="username for automatic1111 stable diffusion service (default is user)")
     parser.add_argument("-p", "--sdpassw", type=str, required=False,
                         help="password for automatic1111 stable diffusion service (default is password)")
-    parser.add_argument("-o", "--output", type=str, required=False,
-                        help="path to the output image (default is $PWD/output)")
-    parser.add_argument("-r", "--rounds", type=int, required=False,
-                        help="number of rounds for consensus")
 
     return parser.parse_args()
 
@@ -55,7 +50,7 @@ def p2p_argparse():
 
 class GenScnG():
 
-    def __init__(self, parse=False):
+    def __init__(self, parse=True):
 
         self.uid = None
         self.name = None
@@ -63,11 +58,11 @@ class GenScnG():
         self.address = None
         self.seeduid = None
         self.seedaddress = None
+        self.image = None
+        self.output = "output"
         self.stablediffusion = "http://127.0.0.1:7860"
         self.sduser = "user"
         self.sdpassw = "password"
-        self.image = None
-        self.output = "output"
         self.rounds = 1
         
         if parse:
@@ -78,16 +73,16 @@ class GenScnG():
             self.address = args.address
             self.seeduid = args.seeduid
             self.seedaddress = args.seedaddress
+            if args.image:
+                self.image = args.image
+            if args.output:
+                self.output = args.output
             if args.stablediffusion:
                 self.stablediffusion = args.stablediffusion
             if args.sduser:
                 self.sduser = args.sduser
             if args.sdpassw:
                 self.sdpassw = args.sdpassw
-            if args.image:
-                self.image = args.image
-            if args.output:
-                self.output = args.output
             if args.rounds:
                 self.rounds = args.rounds
 
@@ -101,7 +96,7 @@ class GenScnG():
                                  dispatch_handler=self)
         print(self.overlay.toJSON())
 
-        self.aiconnector = AIConnector()
+        self.aiconnector = AIConnector(stablediffusion=self.stablediffusion, sduser=self.sduser, sdpassw=self.sdpassw)
 
     def terminate(self):
         self.overlay.terminate()
@@ -117,37 +112,6 @@ class GenScnG():
         searchres = None
         return searchres
 
-    # ------
-    def sceneMerge(self, sceneA=None, sceneB=None):
-        scnmerge = None
-        if sceneA and sceneB:
-            response: ChatResponse = chat(
-                model='phi3:14b',
-                messages=[
-                {
-                    'role': 'user',
-                    'content': 'Can you merge the common elements of the following two scene descriptions into plain text? The first description is ' + str(sceneA) + '. The second description is ' + str(sceneB)
-                },
-                ],
-                format=SceneDesc.model_json_schema()
-            )
-            print(response.message.content)
-            scnmerge = response.message.content
-            print(SceneDesc.model_validate_json(response.message.content))
-        return scnmerge
-
-
-    # ------
-    def sendTo1111(self, prompt):
-        payload = {
-            "prompt": prompt,
-            "steps": 20
-        }
-        response = requests.post(url=self.stablediffusion + "/sdapi/v1/txt2img", json=payload, auth=(self.sduser, self.sdpassw))
-        res_json = response.json()
-        if "images" in res_json:
-            with open(self.output + "." + self.overlay.name + ".png", 'wb') as f:
-                f.write(base64.b64decode(res_json['images'][0]))
 
     # ------
     def run(self):
@@ -156,7 +120,8 @@ class GenScnG():
             # TODO: broadcast to neighborhood
             # TODO: merge scene from neighborhood
             mergescene = localscene
-        self.sendTo1111(mergescene)
+        prompt=json.dumps(mergescene)
+        self.aiconnector.sendTo1111(prompt=prompt, output=self.output + "." + self.overlay.name + ".png")
 
 
     
@@ -165,14 +130,14 @@ class GenScnG():
 
 if __name__ == "__main__":
 
-    genscng = GenScnG(parse=True)
+    genscng = GenScnG()
 
     # TODO: remove once broadcast/merge is implemented
     # if genscng.image:
     #     sceneA = genscng.aiconnector.imgToTxt(genscng.image)
     #     sceneB = genscng.aiconnector.imgToTxt(genscng.image)
-    #     sceneC = genscng.sceneMerge(sceneA, sceneB)
-    #     genscng.sendTo1111(sceneC)
+    #     sceneC = genscng.aiconnector.sceneMerge(sceneA, sceneB)
+    #     genscng.aiconnector.sendTo1111(sceneC)
 
     genscng.run()
 
