@@ -72,7 +72,7 @@ class AIConnector():
         self.targetdir = os.path.realpath(self.targetdir)
 
 
-    def imgToTxt(self, imagefile=None, placeholder=False):
+    def imgToTxt(self, imagefile=None, placeholder=False, model='llava:13b'):
         scenegraph = None
         if imagefile:
             if placeholder:
@@ -85,7 +85,7 @@ class AIConnector():
                                 scenegraph = jsondata['descriptions'][randint(0, len(jsondata['descriptions']) - 1)]
             if scenegraph is None:
                 response: ChatResponse = chat(
-                    model='llava:13b',
+                    model=model,
                     messages=[
                         {
                             'role': 'user',
@@ -101,11 +101,11 @@ class AIConnector():
 
 
 
-    def sceneMerge(self, sceneA=None, sceneB=None):
+    def sceneMerge(self, sceneA=None, sceneB=None, model='phi3:14b'):
         scnmerge = None
         if sceneA and sceneB:
             response: ChatResponse = chat(
-                model='phi3:14b',
+                model=model,
                 messages=[
                 {
                     'role': 'user',
@@ -133,7 +133,7 @@ class AIConnector():
                 f.write(base64.b64decode(res_json['images'][0]))
 
 
-    def populate(self):
+    def populate(self, model='llava:13b'):
         print("Populating " + self.targetdir)
         filelist = []
         for ftype in self.filetypes:
@@ -145,9 +145,9 @@ class AIConnector():
                 with open(jsonfile) as f:
                     jsondata = json.load(f)
             for i in tqdm.trange(self.iterations, desc=os.path.basename(imagefile)):
-                scenegraph = self.imgToTxt(imagefile=imagefile)
+                scenegraph = self.imgToTxt(imagefile=imagefile, model=model)
                 timestamp = datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S")
-                jsonadd = json.loads('{"timestamp": "'+timestamp+'", "content": {}}')
+                jsonadd = json.loads('{"timestamp": "'+timestamp+'", "model": "'+model+'", "content": {}}')
                 jsonadd['content'] = scenegraph
                 jsondata['descriptions'].append(jsonadd)
             jsonobject = json.dumps(jsondata, indent=4)
