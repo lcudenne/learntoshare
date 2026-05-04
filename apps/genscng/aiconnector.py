@@ -7,6 +7,7 @@ import time
 import datetime
 import base64
 import requests
+import uuid
 
 from random import randint
 from pydantic import BaseModel
@@ -72,7 +73,7 @@ class AIConnector():
         self.targetdir = os.path.realpath(self.targetdir)
 
 
-    def imgToTxt(self, imagefile=None, placeholder=False, model='llava:13b'):
+    def imgToTxt(self, imagefile=None, placeholder=False, model='llava'):
         scenegraph = None
         if imagefile:
             if placeholder:
@@ -101,7 +102,7 @@ class AIConnector():
 
 
 
-    def sceneMerge(self, sceneA=None, sceneB=None, model='phi3:14b'):
+    def sceneMerge(self, sceneA=None, sceneB=None, model='ministral-3:3b'):
         scnmerge = None
         if sceneA and sceneB:
             response: ChatResponse = chat(
@@ -133,7 +134,7 @@ class AIConnector():
                 f.write(base64.b64decode(res_json['images'][0]))
 
 
-    def populate(self, model='llava:13b'):
+    def populate(self, model='llava'):
         print("Populating " + self.targetdir)
         filelist = []
         for ftype in self.filetypes:
@@ -147,7 +148,7 @@ class AIConnector():
             for i in tqdm.trange(self.iterations, desc=os.path.basename(imagefile)):
                 scenegraph = self.imgToTxt(imagefile=imagefile, model=model)
                 timestamp = datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S")
-                jsonadd = json.loads('{"timestamp": "'+timestamp+'", "model": "'+model+'", "content": {}}')
+                jsonadd = json.loads('{"uuid": "'+str(uuid.uuid4())+'", "timestamp": "'+timestamp+'", "model": "'+model+'", "content": {}}')
                 jsonadd['content'] = scenegraph
                 jsondata['descriptions'].append(jsonadd)
             jsonobject = json.dumps(jsondata, indent=4)

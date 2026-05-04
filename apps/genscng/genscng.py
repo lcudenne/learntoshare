@@ -123,6 +123,7 @@ class GenScnG():
         mergescene = dict()
         for i in range(self.rounds):
             localscene = self.aiconnector.imgToTxt(imagefile=self.image, placeholder=True)
+            print(localscene)
             self.overlay.communicator.broadcast(json.dumps(localscene))
             if len(mergescene) == 0:
                 mergescene = localscene
@@ -132,7 +133,7 @@ class GenScnG():
                 message_json = self.pending_messages.get()
                 mergescene = self.aiconnector.sceneMerge(mergescene, message_json)
         prompt=json.dumps(mergescene)
-        self.aiconnector.sendTo1111(prompt=prompt, output=self.output + "." + self.overlay.name + ".png")
+        #self.aiconnector.sendTo1111(prompt=prompt, output=self.output + "." + self.overlay.name + ".png")
 
 
     
