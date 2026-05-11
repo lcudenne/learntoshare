@@ -29,7 +29,10 @@ def ai_argparse():
                         help="path to the target directory to populate multiview scenes with labels")
     parser.add_argument("-n", "--iterations", type=int, required=False,
                         help="number of iterations for each image (default is 2)")
-
+    parser.add_argument("-l", "--llm", type=str, required=False,
+                        help="Ollama model (default is ministral-3:3b")
+    parser.add_argument("-v", "--vlm", type=str, required=False,
+                        help="Ollama vision model (default is llava:13b")
  
     return parser.parse_args()
 
@@ -62,6 +65,9 @@ class AIConnector():
         self.stablediffusion = stablediffusion
         self.sduser = sduser
         self.sdpassw = sdpassw
+        self.llm = self.args.llm or "ministral-3:3b"
+        self.vlm = self.args.vlm or "llava:13b"
+
 
         if parse:
             args=ai_argparse()
@@ -73,7 +79,7 @@ class AIConnector():
         self.targetdir = os.path.realpath(self.targetdir)
 
 
-    def imgToTxt(self, imagefile=None, placeholder=False, model='llava'):
+    def imgToTxt(self, imagefile=None, placeholder=False):
         scenegraph = None
         if imagefile:
             if placeholder:
@@ -86,7 +92,7 @@ class AIConnector():
                                 scenegraph = jsondata['descriptions'][randint(0, len(jsondata['descriptions']) - 1)]
             if scenegraph is None:
                 response: ChatResponse = chat(
-                    model=model,
+                    model=self.vlm,
                     messages=[
                         {
                             'role': 'user',
@@ -102,11 +108,11 @@ class AIConnector():
 
 
 
-    def sceneMerge(self, sceneA=None, sceneB=None, model='ministral-3:3b'):
+    def sceneMerge(self, sceneA=None, sceneB=None):
         scnmerge = None
         if sceneA and sceneB:
             response: ChatResponse = chat(
-                model=model,
+                model=self.llm,
                 messages=[
                 {
                     'role': 'user',
@@ -134,7 +140,7 @@ class AIConnector():
                 f.write(base64.b64decode(res_json['images'][0]))
 
 
-    def populate(self, model='llava'):
+    def populate(self):
         print("Populating " + self.targetdir)
         filelist = []
         for ftype in self.filetypes:
@@ -146,9 +152,9 @@ class AIConnector():
                 with open(jsonfile) as f:
                     jsondata = json.load(f)
             for i in tqdm.trange(self.iterations, desc=os.path.basename(imagefile)):
-                scenegraph = self.imgToTxt(imagefile=imagefile, model=model)
+                scenegraph = self.imgToTxt(imagefile=imagefile, model=self.vlm)
                 timestamp = datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S")
-                jsonadd = json.loads('{"uuid": "'+str(uuid.uuid4())+'", "timestamp": "'+timestamp+'", "model": "'+model+'", "content": {}}')
+                jsonadd = json.loads('{"uuid": "'+str(uuid.uuid4())+'", "timestamp": "'+timestamp+'", "model": "'+self.vlm+'", "content": {}}')
                 jsonadd['content'] = scenegraph
                 jsondata['descriptions'].append(jsonadd)
             jsonobject = json.dumps(jsondata, indent=4)
