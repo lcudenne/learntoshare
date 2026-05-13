@@ -41,6 +41,11 @@ def p2p_argparse():
                         help="username for automatic1111 stable diffusion service (default is user)")
     parser.add_argument("-p", "--sdpassw", type=str, required=False,
                         help="password for automatic1111 stable diffusion service (default is password)")
+    parser.add_argument("-l", "--llm", type=str, required=False,
+                        help="Ollama model (default is ministral-3:3b")
+    parser.add_argument("-v", "--vlm", type=str, required=False,
+                        help="Ollama vision model (default is llava:13b")
+
 
     return parser.parse_args()
 
@@ -65,6 +70,8 @@ class GenScnG():
         self.sduser = "user"
         self.sdpassw = "password"
         self.rounds = 1
+        self.llm = "ministral-3:3b"
+        self.vlm="llava:13b"
         
         if parse:
             args = p2p_argparse()
@@ -74,6 +81,8 @@ class GenScnG():
             self.address = args.address
             self.seeduid = args.seeduid
             self.seedaddress = args.seedaddress
+            self.llm = args.llm or "ministral-3:3b"
+            self.vlm = args.vlm or "llava:13b"
             if args.image:
                 self.image = args.image
             if args.output:
@@ -143,13 +152,6 @@ class GenScnG():
 if __name__ == "__main__":
 
     genscng = GenScnG()
-
-    # TODO: remove once broadcast/merge is implemented
-    # if genscng.image:
-    #     sceneA = genscng.aiconnector.imgToTxt(genscng.image)
-    #     sceneB = genscng.aiconnector.imgToTxt(genscng.image)
-    #     sceneC = genscng.aiconnector.sceneMerge(sceneA, sceneB)
-    #     genscng.aiconnector.sendTo1111(sceneC)
 
     genscng.run()
 

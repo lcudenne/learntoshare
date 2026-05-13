@@ -57,7 +57,9 @@ class AIConnector():
     def __init__(self, parse=False,
                  stablediffusion="http://127.0.0.1:7860",
                  sduser="user",
-                 sdpassw="password"):
+                 sdpassw="password",
+                 llm="ministral-3:3b",
+                 vlm="llava:13b"):
 
         self.targetdir = os.getcwd()
         self.iterations = 2
@@ -65,12 +67,13 @@ class AIConnector():
         self.stablediffusion = stablediffusion
         self.sduser = sduser
         self.sdpassw = sdpassw
-        self.llm = self.args.llm or "ministral-3:3b"
-        self.vlm = self.args.vlm or "llava:13b"
-
+        self.llm = llm
+        self.vlm = vlm
 
         if parse:
             args=ai_argparse()
+            self.llm = args.llm or "ministral-3:3b"
+            self.vlm = args.vlm or "llava:13b"
             if args.targetdir:
                 self.targetdir = args.targetdir
             if args.iterations:
