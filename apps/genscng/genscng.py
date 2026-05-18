@@ -1,6 +1,8 @@
 import argparse
 import json
 import queue
+import time
+import datetime
 
 from apps.genscng.aiconnector import AIConnector
 
@@ -132,7 +134,7 @@ class GenScnG():
         mergescene = dict()
         for i in range(self.rounds):
             localscene = self.aiconnector.imgToTxt(imagefile=self.image, placeholder=True)
-            print(localscene)
+            print(datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S") + " USER [TACSIT] " + self.overlay.uuid + " " + json.dumps(localscene))
             self.overlay.communicator.broadcast(json.dumps(localscene))
             if len(mergescene) == 0:
                 mergescene = localscene
