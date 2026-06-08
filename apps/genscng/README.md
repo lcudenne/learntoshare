@@ -7,7 +7,7 @@ Test the P2P skeleton locally on two different consoles.
 Set your virtual environment.
 
 ```bash
-$ cd apps/optuna_p2p
+$ cd apps/genscng
 $ python3 -m venv venv
 $ source venv/bin/activate
 (venv) $ pip install -r ../../requirements.txt

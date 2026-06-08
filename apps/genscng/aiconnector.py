@@ -82,7 +82,7 @@ class AIConnector():
         self.targetdir = os.path.realpath(self.targetdir)
 
 
-    def imgToTxt(self, imagefile=None, placeholder=False):
+    def imgToTxt(self, imagefile=None, placeholder=False, filtervlm=None):
         scenegraph = None
         if imagefile:
             if placeholder:
@@ -91,8 +91,11 @@ class AIConnector():
                     with open(jsonfile) as f:
                         jsondata = json.load(f)
                         if jsondata['descriptions']:
-                            if len(jsondata['descriptions']) > 0:
-                                scenegraph = jsondata['descriptions'][randint(0, len(jsondata['descriptions']) - 1)]
+                            filterdesc=jsondata['descriptions']
+                            if filtervlm:
+                                filterdesc=next(d for d in jsondata['descriptions'] if d['model'] == filtervlm)
+                            if len(filterdesc) > 0:
+                                scenegraph = filterdesc[randint(0, len(filterdesc) - 1)]
             if scenegraph is None:
                 response: ChatResponse = chat(
                     model=self.vlm,

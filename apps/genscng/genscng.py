@@ -5,6 +5,7 @@ import time
 import datetime
 
 from apps.genscng.aiconnector import AIConnector
+from apps.genscng.frameplayer import FramePlayer
 
 from src.core.common import LTS_Common
 from src.core.agents import LTS_Agent
@@ -33,6 +34,8 @@ def p2p_argparse():
                         help="network address of the seed to bootstrap the P2P overlay (default is our own address)")
     parser.add_argument("-i", "--image", type=str, required=False,
                         help="path to an input single image")
+    parser.add_argument("-t", "--track", type=str, required=False,
+                        help="path to a base image name corresponding to track (sequence of images)")
     parser.add_argument("-o", "--output", type=str, required=False,
                         help="path to the output image (default is $PWD/output)")
     parser.add_argument("-r", "--rounds", type=int, required=False,
@@ -67,6 +70,7 @@ class GenScnG():
         self.seeduid = None
         self.seedaddress = None
         self.image = None
+        self.track = None
         self.output = "output"
         self.stablediffusion = "http://127.0.0.1:7860"
         self.sduser = "user"
@@ -87,6 +91,8 @@ class GenScnG():
             self.vlm = args.vlm or "llava:13b"
             if args.image:
                 self.image = args.image
+            if args.track:
+                self.track = args.track
             if args.output:
                 self.output = args.output
             if args.stablediffusion:
@@ -129,21 +135,40 @@ class GenScnG():
         return searchres
 
 
+
     # ------
-    def run(self):
-        mergescene = dict()
-        for i in range(self.rounds):
-            localscene = self.aiconnector.imgToTxt(imagefile=self.image, placeholder=True)
+    def imageSeq(self, image=None, inputscene=None):
+        if image:
+            print(datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S") + " USER [INPUT] " + self.overlay.uuid + " " + image)
+            localscene = self.aiconnector.imgToTxt(imagefile=image, placeholder=True)
             print(datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S") + " USER [TACSIT] " + self.overlay.uuid + " " + json.dumps(localscene))
             self.overlay.communicator.broadcast(json.dumps(localscene))
-            if len(mergescene) == 0:
+            if len(inputscene) == 0:
                 mergescene = localscene
             else:
-                mergescene = self.aiconnector.sceneMerge(mergescene, localscene)
+                mergescene = self.aiconnector.sceneMerge(inputscene, localscene)
             while not self.pending_messages.empty():
                 message_json = self.pending_messages.get()
                 mergescene = self.aiconnector.sceneMerge(mergescene, message_json)
-        prompt=json.dumps(mergescene)
+        return mergescene
+
+
+    # ------
+    def run(self):
+        mergescene = dict()
+
+        if self.track:
+            frameplayer = FramePlayer(filename=self.track)
+            fnext = frameplayer.next()
+            while fnext:
+                mergescene = self.imageSeq(image=fnext, inputscene=mergescene)
+                fnext = frameplayer.next()
+
+        if self.image:
+            for i in range(self.rounds):
+                mergescene = self.imageSeq(image=self.image, inputscene=mergescene)
+
+        #prompt=json.dumps(mergescene)
         #self.aiconnector.sendTo1111(prompt=prompt, output=self.output + "." + self.overlay.name + ".png")
 
 

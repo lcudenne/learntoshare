@@ -79,7 +79,7 @@ class ToFind():
                 tofindlist = self.args.keywords
             else:
                 tofindlist = list()
-                tofindfile = inputfile.rsplit('_', 1)[0] + ".tofind"
+                tofindfile = inputfile.rsplit('_', 2)[0] + ".tofind"
                 if os.path.isfile(tofindfile):
                     with open(tofindfile) as f:
                         tofindlist = [line.rstrip() for line in f]
