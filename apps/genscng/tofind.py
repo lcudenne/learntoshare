@@ -62,7 +62,6 @@ class ToFind():
             ],
             format=ToFindAnswer.model_json_schema()
         )
-        print(response.message.content)
         resjson = json.loads(response.message.content)
         return bool(resjson['answer']), str(resjson['justification'])
 
@@ -121,24 +120,28 @@ class ToFind():
                     for logline in f:
                         logsplit = logline.split(' ', 5)
                         if "TACSIT" in logline:
-                            eventlist.append(dict(Agent=logsplit[4],
+                            eventlist.append(dict(File=logfile,
+                                                  Agent=logsplit[4],
                                                   Start=self.toTimestamp(logsplit),
-                                                  End=self.toTimestamp(logsplit)+1))
+                                                  End=self.toTimestamp(logsplit)+1,
+                                                  Keyword="TACSIT"))
                             for keyword in tofindlist:
                                 answer, justification = self.isPresentRegExp(keyword=keyword, descjson=json.loads(logsplit[5]))
                                 if not answer:
                                     answer, justification = self.isPresentLLM(keyword=keyword, descjson=json.loads(logsplit[5]))
                                 if answer:
-                                    eventlist.append(dict(Agent=logsplit[4],
+                                    eventlist.append(dict(File=logfile,
+                                                          Agent=logsplit[4],
                                                           Start=self.toTimestamp(logsplit),
-                                                          End=end_date))
+                                                          End=end_date,
+                                                          Keyword=keyword))
 
         print(eventlist)
         if eventlist:
             df = pd.DataFrame(eventlist)
             df['Start'] = pd.to_datetime(df['Start'], unit='s')
             df['End'] = pd.to_datetime(df['End'], unit='s')
-            fig = px.timeline(df, x_start="Start", x_end="End", y="Agent")
+            fig = px.timeline(df, x_start="Start", x_end="End", y="Agent", color="Keyword")
             fig.update_yaxes(autorange="reversed")
             fig.show()
 
