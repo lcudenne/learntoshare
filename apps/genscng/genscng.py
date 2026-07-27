@@ -124,9 +124,8 @@ class GenScnG():
 
         
     def dispatchMessage(self, message):
-        content_json = json.loads(message.content)
-        self.pending_messages.put(content_json)
-        print("Received", content_json, "from", message.from_uuid)
+        self.pending_messages.put(message.content)
+        print("Received", content, "from", message.from_uuid)
         return None
 
     # ------
@@ -141,15 +140,15 @@ class GenScnG():
         if image:
             print(datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S") + " USER [INPUT] " + self.overlay.uuid + " " + image)
             localscene = self.aiconnector.imgToTxt(imagefile=image, placeholder=True)
-            print(datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S") + " USER [TACSIT] " + self.overlay.uuid + " " + json.dumps(localscene))
-            self.overlay.communicator.broadcast(json.dumps(localscene))
+            print(datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S") + " USER [TACSIT] " + self.overlay.uuid + " " + localscene)
+            self.overlay.communicator.broadcast(localscene)
             if len(inputscene) == 0:
                 mergescene = localscene
             else:
                 mergescene = self.aiconnector.sceneMerge(inputscene, localscene)
             while not self.pending_messages.empty():
-                message_json = self.pending_messages.get()
-                mergescene = self.aiconnector.sceneMerge(mergescene, message_json)
+                message = self.pending_messages.get()
+                mergescene = self.aiconnector.sceneMerge(mergescene, message)
         return mergescene
 
 
@@ -168,8 +167,7 @@ class GenScnG():
             for i in range(self.rounds):
                 mergescene = self.imageSeq(image=self.image, inputscene=mergescene)
 
-        #prompt=json.dumps(mergescene)
-        #self.aiconnector.sendTo1111(prompt=prompt, output=self.output + "." + self.overlay.name + ".png")
+        #self.aiconnector.sendTo1111(prompt=mergescene, output=self.output + "." + self.overlay.name + ".png")
 
 
     

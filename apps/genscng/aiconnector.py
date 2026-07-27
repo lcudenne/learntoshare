@@ -8,12 +8,16 @@ import datetime
 import base64
 import requests
 import uuid
+import sys
 
 from random import randint
 from pydantic import BaseModel
 
 from ollama import chat
 from ollama import ChatResponse
+
+from llama_cpp import Llama
+from llama_cpp.llama_chat_format import Llava15ChatHandler
 
 
 # ------------------------------------------------------------------------------
@@ -30,14 +34,18 @@ def ai_argparse():
     parser.add_argument("-n", "--iterations", type=int, required=False,
                         help="number of iterations for each image (default is 2)")
     parser.add_argument("-l", "--llm", type=str, required=False,
-                        help="Ollama model (default is ministral-3:3b")
+                        help="AI model (default is ministral-3:3b)")
     parser.add_argument("-v", "--vlm", type=str, required=False,
-                        help="Ollama vision model (default is llava:13b")
+                        help="AI vision model (default is llava:13b)")
+    parser.add_argument("-c", "--clipmodel", type=str, required=False,
+                        help="AI vision CLIP model to use with llamacpp runtime (mmproj file)")
+    parser.add_argument("-r", "--runtime", type=str, required=False,
+                        help="Inference runtime {ollama, llamacpp} (default is ollama)")
  
     return parser.parse_args()
 
 # ------------------------------------------------------------------------------
-
+#deprecated
 
 class SceneObj(BaseModel):
     object: str
@@ -59,7 +67,9 @@ class AIConnector():
                  sduser="user",
                  sdpassw="password",
                  llm="ministral-3:3b",
-                 vlm="llava:13b"):
+                 vlm="llava:13b",
+                 clipmodel="",
+                 runtime="ollama"):
 
         self.targetdir = os.getcwd()
         self.iterations = 2
@@ -69,17 +79,65 @@ class AIConnector():
         self.sdpassw = sdpassw
         self.llm = llm
         self.vlm = vlm
+        self.clipmodel = clipmodel
+        self.runtime = runtime
+        self.vlmprompt = 'You are observing your environment for unusual objects and events. Please list all objects, the location of the objects and the relationships between objects in the given picture:'
 
         if parse:
             args=ai_argparse()
             self.llm = args.llm or "ministral-3:3b"
             self.vlm = args.vlm or "llava:13b"
+            self.clipmodel = args.clipmodel or ""
+            self.runtime = args.runtime or "ollama"
             if args.targetdir:
                 self.targetdir = args.targetdir
             if args.iterations:
                 self.iterations = args.iterations
 
         self.targetdir = os.path.realpath(self.targetdir)
+
+
+
+    def imgToTxtOllama(self, imagefile):
+        response: ChatResponse = chat(
+            model=self.vlm,
+            messages=[
+                {
+                    'role': 'user',
+                    'content': self.vlmprompt,
+                    'images': [imagefile]
+                },
+            ],
+        )
+        return response.message.content
+
+
+    def imgToTxtLlamaCpp(self, imagefile):
+        chat_handler = Llava15ChatHandler(clip_model_path=self.clipmodel)
+        llm = Llama(
+            model_path=self.vlm,
+            chat_handler=chat_handler,
+            n_gpu_layers=-1,
+            seed=randint(0, sys.maxsize),
+            n_ctx=2048,
+            verbose=False
+        )
+        response = llm.create_chat_completion(
+            messages = [
+                {"role": "system", "content": "You are an assistant who perfectly describes images."},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type" : "text",
+                         "text": self.vlmprompt},
+                        {"type": "image_url",
+                         "image_url": {"url": "file:"+imagefile} }
+                    ]
+                }
+            ]
+        )
+        return str(response["choices"][0]["message"]["content"])
+
 
 
     def imgToTxt(self, imagefile=None, placeholder=False, filtervlm=None):
@@ -95,20 +153,14 @@ class AIConnector():
                             if filtervlm:
                                 filterdesc=next(d for d in jsondata['descriptions'] if d['model'] == filtervlm)
                             if len(filterdesc) > 0:
-                                scenegraph = filterdesc[randint(0, len(filterdesc) - 1)]
+                                scenegraph = filterdesc[randint(0, len(filterdesc) - 1)]['content']
             if scenegraph is None:
-                response: ChatResponse = chat(
-                    model=self.vlm,
-                    messages=[
-                        {
-                            'role': 'user',
-                            'content': 'Please list all objects, the location of the objects and the relationships between objects using bullet points:',
-                            'images': [imagefile]
-                        },
-                    ],
-                    format=SceneDesc.model_json_schema()
-                )
-                scenegraph = json.loads(response.message.content)
+                response = None
+                if self.runtime == "llamacpp":
+                    response = self.imgToTxtLlamaCpp(imagefile)
+                if self.runtime == "ollama":
+                    response = self.imgToTxtOllama(imagefile)
+                scenegraph = response
 
         return scenegraph
 
@@ -158,9 +210,11 @@ class AIConnector():
                 with open(jsonfile) as f:
                     jsondata = json.load(f)
             for i in tqdm.trange(self.iterations, desc=os.path.basename(imagefile)):
-                scenegraph = self.imgToTxt(imagefile=imagefile, model=self.vlm)
+                starttime=time.time()
+                scenegraph = self.imgToTxt(imagefile=imagefile)
+                inferencetime = int(time.time() - starttime)
                 timestamp = datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S")
-                jsonadd = json.loads('{"uuid": "'+str(uuid.uuid4())+'", "timestamp": "'+timestamp+'", "model": "'+self.vlm+'", "content": {}}')
+                jsonadd = json.loads('{"uuid": "'+str(uuid.uuid4())+'", "timestamp": "'+timestamp+'", "inferencetime_s": "'+str(inferencetime)+'", "runtime": "'+self.runtime+'", "model": "'+self.vlm.rsplit('/', 1)[-1]+'", "content": {}}')
                 jsonadd['content'] = scenegraph
                 jsondata['descriptions'].append(jsonadd)
             jsonobject = json.dumps(jsondata, indent=4)
