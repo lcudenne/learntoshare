@@ -1,6 +1,13 @@
 ollama
-llama-cpp-python -C cmake.args="-DGGML_CUDA=on;-DLLAMA_BLAS=on;-DLLAMA_BLAS_VENDOR=OpenBLAS;"
+#llama-cpp-python -C cmake.args="-DGGML_CUDA=on;-DLLAMA_BLAS=on;-DLLAMA_BLAS_VENDOR=OpenBLAS;"
+llama-cpp-python -C cmake.args="-DLLAMA_BLAS=on;-DLLAMA_BLAS_VENDOR=OpenBLAS;"
 requests
 tqdm
 plotly
 pandas
+
+# hftransformers
+transformers
+torch
+torchvision
+Pillow

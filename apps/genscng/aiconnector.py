@@ -19,6 +19,8 @@ from ollama import ChatResponse
 from llama_cpp import Llama
 from llama_cpp.llama_chat_format import Llava15ChatHandler
 
+from transformers import pipeline
+
 
 # ------------------------------------------------------------------------------
 
@@ -40,7 +42,7 @@ def ai_argparse():
     parser.add_argument("-c", "--clipmodel", type=str, required=False,
                         help="AI vision CLIP model to use with llamacpp runtime (mmproj file)")
     parser.add_argument("-r", "--runtime", type=str, required=False,
-                        help="Inference runtime {ollama, llamacpp} (default is ollama)")
+                        help="Inference runtime {ollama, llamacpp, transformers} (default is ollama)")
  
     return parser.parse_args()
 
@@ -139,6 +141,23 @@ class AIConnector():
         return str(response["choices"][0]["message"]["content"])
 
 
+    def imgToTxtTransformers(self, imagefile):
+        pipe = pipeline("image-text-to-text", model=self.vlm)
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text",
+                     "text": self.vlmprompt},
+                    {"type": "image_url",
+                     "image_url": {"url": imagefile}
+                    }
+                ]
+            }
+        ]
+        out = pipe(text=messages)
+        return str(out[0]['generated_text'][1]['content'])
+
 
     def imgToTxt(self, imagefile=None, placeholder=False, filtervlm=None):
         scenegraph = None
@@ -156,6 +175,8 @@ class AIConnector():
                                 scenegraph = filterdesc[randint(0, len(filterdesc) - 1)]['content']
             if scenegraph is None:
                 response = None
+                if self.runtime == "transformers":
+                    response = self.imgToTxtTransformers(imagefile)
                 if self.runtime == "llamacpp":
                     response = self.imgToTxtLlamaCpp(imagefile)
                 if self.runtime == "ollama":
