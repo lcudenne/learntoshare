@@ -125,7 +125,6 @@ class GenScnG():
         
     def dispatchMessage(self, message):
         self.pending_messages.put(message.content)
-        print("Received", content, "from", message.from_uuid)
         return None
 
     # ------
@@ -138,17 +137,22 @@ class GenScnG():
     # ------
     def imageSeq(self, image=None, inputscene=None):
         if image:
-            print(datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S") + " USER [INPUT] " + self.overlay.uuid + " " + image)
             localscene = self.aiconnector.imgToTxt(imagefile=image, placeholder=True)
-            print(datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S") + " USER [TACSIT] " + self.overlay.uuid + " " + localscene)
+            print(datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S") + " USER [TACSIT] " + self.overlay.uuid + " IMGTOTXT " + image + " CONTENT " + localscene)
+
             self.overlay.communicator.broadcast(localscene)
+
             if len(inputscene) == 0:
                 mergescene = localscene
             else:
                 mergescene = self.aiconnector.sceneMerge(inputscene, localscene)
+                print(datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S") + " USER [TACSIT] " + self.overlay.uuid + " LOCALMERGE " + localscene)
+
             while not self.pending_messages.empty():
                 message = self.pending_messages.get()
                 mergescene = self.aiconnector.sceneMerge(mergescene, message)
+                print(datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S") + " USER [TACSIT] " + self.overlay.uuid + " REMOTEMERGE " + localscene)
+
         return mergescene
 
 

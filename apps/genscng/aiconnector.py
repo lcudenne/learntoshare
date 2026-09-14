@@ -186,23 +186,31 @@ class AIConnector():
         return scenegraph
 
 
-
-    def sceneMerge(self, sceneA=None, sceneB=None):
+    def sceneMerge(self, sceneA=None, sceneB=None, usejson=False):
         scnmerge = None
         if sceneA and sceneB:
-            response: ChatResponse = chat(
-                model=self.llm,
-                messages=[
-                {
-                    'role': 'user',
-                    'content': 'Please merge the common elements of the following two scene descriptions into plain text. The first description is ' + str(sceneA) + '. The second description is ' + str(sceneB)
-                },
-                ],
-                format=SceneDesc.model_json_schema()
-            )
-            print(response.message.content)
+            if usejson:
+                response: ChatResponse = chat(
+                    model=self.llm,
+                    messages=[
+                        {
+                            'role': 'user',
+                            'content': 'Please merge the common elements of the following two scene descriptions into plain text. The first description is ' + str(sceneA) + '. The second description is ' + str(sceneB)
+                        },
+                    ],
+                    format=SceneDesc.model_json_schema()
+                )
+            else:
+                response: ChatResponse = chat(
+                    model=self.llm,
+                    messages=[
+                        {
+                            'role': 'user',
+                            'content': 'Please merge the common elements of the following two scene descriptions into plain text. The first description is ' + str(sceneA) + '. The second description is ' + str(sceneB)
+                        },
+                    ]
+                )
             scnmerge = response.message.content
-            print(SceneDesc.model_validate_json(response.message.content))
         return scnmerge
 
 
