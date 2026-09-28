@@ -205,34 +205,94 @@ class AIConnector():
         return scenegraph
 
 
-    def sceneMerge(self, sceneA=None, sceneB=None, usejson=False):
-        scnmerge = None
-        if sceneA and sceneB:
-            if usejson:
-                response: ChatResponse = chat(
-                    model=self.llm,
-                    messages=[
-                        {
-                            'role': 'user',
-                            'content': 'Please merge the common elements of the following two scene descriptions into plain text. The first description is ' + str(sceneA) + '. The second description is ' + str(sceneB)
-                        },
-                    ],
-                    format=SceneDesc.model_json_schema()
-                )
-            else:
-                response: ChatResponse = chat(
-                    model=self.llm,
-                    messages=[
-                        {
-                            'role': 'user',
-                            'content': 'Please merge the common elements of the following two scene descriptions into plain text. The first description is ' + str(sceneA) + '. The second description is ' + str(sceneB)
-                        },
+    def sceneMergeOllama(self, mergeprompt=None, usejson=False):
+        content = None
+        if usejson:
+            response: ChatResponse = chat(
+                model=self.llm,
+                messages=[
+                    {
+                        'role': 'user',
+                        'content': mergeprompt
+                    },
+                ],
+                format=SceneDesc.model_json_schema()
+            )
+        else:
+            response: ChatResponse = chat(
+                model=self.llm,
+                messages=[
+                    {
+                        'role': 'user',
+                        'content': mergeprompt
+                    },
+                ]
+            )
+        content = response.message.content
+        return content
+
+
+
+    def sceneMergeLlamaCpp(self, mergeprompt=None):
+        ch = Llava15ChatHandler()
+        llm = Llama(
+            model_path=self.llm,
+            chat_handler=ch,
+            n_gpu_layers=-1,
+            seed=randint(0, sys.maxsize),
+            n_ctx=2048,
+            verbose=False
+        )
+        response = llm.create_chat_completion(
+            messages = [
+                {"role": "system", "content": "You are an assistant who perfectly analyze text."},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type" : "text",
+                         "text": mergeprompt}
                     ]
-                )
-            scnmerge = response.message.content
-        return scnmerge
+                }
+            ]
+        )
+        content = str(response["choices"][0]["message"]["content"])
+        llm.close()
+        # the following is required to free the VRAM
+        # https://github.com/abetlen/llama-cpp-python/issues/2342
+        if ch is not None and hasattr(ch, "_exit_stack"):
+            try:
+                ch._exit_stack.close()
+            except Exception:
+                pass
+        return content
 
+    def sceneMergeTransformers(self, mergeprompt=None):
+        pipe = pipeline("text-to-text", model=self.llm)
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text",
+                     "text": mergeprompt}
+                ]
+            }
+        ]
+        out = pipe(text=messages)
+        return str(out[0]['generated_text'][1]['content'])
 
+    
+    def sceneMerge(self, sceneA=None, sceneB=None):
+        response = None
+        mergeprompt = 'Please merge the common elements of the following two scene descriptions into plain text. The first scene description is: ' + str(sceneA) + '. The second scene description is: ' + str(sceneB)
+        if self.runtime == "transformers":
+            response = self.sceneMergeTransformers(mergeprompt=mergeprompt)
+        if self.runtime == "llamacpp":
+            response = self.sceneMergeLlamaCpp(mergeprompt=mergeprompt)    
+        if self.runtime == "ollama":
+            response = self.sceneMergeOllama(mergeprompt=mergeprompt)
+        return response
+
+    
 
     def sendTo1111(self, prompt, output):
         payload = {

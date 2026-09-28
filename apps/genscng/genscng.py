@@ -38,7 +38,7 @@ def p2p_argparse():
                         help="path to a base image name corresponding to track (sequence of images)")
     parser.add_argument("-o", "--output", type=str, required=False,
                         help="path to the output image (default is $PWD/output)")
-    parser.add_argument("-r", "--rounds", type=int, required=False,
+    parser.add_argument("-e", "--rounds", type=int, required=False,
                         help="number of rounds for consensus")
     parser.add_argument("-j", "--stablediffusion", type=str, required=False,
                         help="http address to automatic1111 stable diffusion service (default is http://127.0.0.1:7860)")
@@ -46,10 +46,12 @@ def p2p_argparse():
                         help="username for automatic1111 stable diffusion service (default is user)")
     parser.add_argument("-p", "--sdpassw", type=str, required=False,
                         help="password for automatic1111 stable diffusion service (default is password)")
+    parser.add_argument("-r", "--runtime", type=str, required=False,
+                        help="Inference runtime {ollama, llamacpp, transformers} (default is ollama)")
     parser.add_argument("-l", "--llm", type=str, required=False,
-                        help="Ollama model (default is ministral-3:3b")
+                        help="text model (default is ministral-3:3b)")
     parser.add_argument("-v", "--vlm", type=str, required=False,
-                        help="Ollama vision model (default is llava:13b")
+                        help="vision model (default is llava:13b)")
 
 
     return parser.parse_args()
@@ -76,8 +78,9 @@ class GenScnG():
         self.sduser = "user"
         self.sdpassw = "password"
         self.rounds = 1
+        self.runtime = "ollama"
         self.llm = "ministral-3:3b"
-        self.vlm="llava:13b"
+        self.vlm = "llava:13b"
         
         if parse:
             args = p2p_argparse()
@@ -87,6 +90,7 @@ class GenScnG():
             self.address = args.address
             self.seeduid = args.seeduid
             self.seedaddress = args.seedaddress
+            self.runtime = args.runtime or "ollama"
             self.llm = args.llm or "ministral-3:3b"
             self.vlm = args.vlm or "llava:13b"
             if args.image:
@@ -117,7 +121,8 @@ class GenScnG():
                                  dispatch_handler=self)
         print(self.overlay.toJSON())
 
-        self.aiconnector = AIConnector(stablediffusion=self.stablediffusion, sduser=self.sduser, sdpassw=self.sdpassw)
+        self.aiconnector = AIConnector(runtime=self.runtime, llm=self.llm, vlm=self.vlm,
+                                       stablediffusion=self.stablediffusion, sduser=self.sduser, sdpassw=self.sdpassw)
 
     def terminate(self):
         self.overlay.terminate()

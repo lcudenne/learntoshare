@@ -65,7 +65,7 @@ class ToFind():
         resjson = json.loads(response.message.content)
         return bool(resjson['answer']), str(resjson['justification'])
 
-    def processSingleFile(self, inputfile=None):
+    def processDescFile(self, inputfile=None):
         print("tofind input file " + self.args.inputfile)
         ispresent = list()
         if inputfile:
@@ -148,7 +148,7 @@ class ToFind():
 
     def process(self):
         if self.args.inputfile:
-            self.processSingleFile(inputfile=self.args.inputfile)
+            self.processDescFile(inputfile=self.args.inputfile)
 
         if self.args.logdir:
             self.processLogFiles(logdir=self.args.logdir)
