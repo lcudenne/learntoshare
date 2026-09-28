@@ -43,6 +43,10 @@ def ai_argparse():
                         help="AI vision CLIP model to use with llamacpp runtime (mmproj file)")
     parser.add_argument("-r", "--runtime", type=str, required=False,
                         help="Inference runtime {ollama, llamacpp, transformers} (default is ollama)")
+    parser.add_argument("-p", "--cpuinfo", type=str, required=False,
+                        help="CPU info (eg cat /proc/cpuinfo)")
+    parser.add_argument("-g", "--gpuinfo", type=str, required=False,
+                        help="GPU info (eg lshw -C display)")
  
     return parser.parse_args()
 
@@ -71,7 +75,9 @@ class AIConnector():
                  llm="ministral-3:3b",
                  vlm="llava:13b",
                  clipmodel="",
-                 runtime="ollama"):
+                 runtime="ollama",
+                 cpuinfo="None",
+                 gpuinfo="None"):
 
         self.targetdir = os.getcwd()
         self.iterations = 2
@@ -83,6 +89,8 @@ class AIConnector():
         self.vlm = vlm
         self.clipmodel = clipmodel
         self.runtime = runtime
+        self.cpuinfo = cpuinfo
+        self.gpuinfo = gpuinfo
         self.vlmprompt = 'You are observing your environment for unusual objects and events. Please list all objects, the location of the objects and the relationships between objects in the given picture:'
 
         if parse:
@@ -91,6 +99,8 @@ class AIConnector():
             self.vlm = args.vlm or "llava:13b"
             self.clipmodel = args.clipmodel or ""
             self.runtime = args.runtime or "ollama"
+            self.cpuinfo = args.cpuinfo or "None"
+            self.gpuinfo = args.gpuinfo or "None"
             if args.targetdir:
                 self.targetdir = args.targetdir
             if args.iterations:
@@ -115,10 +125,10 @@ class AIConnector():
 
 
     def imgToTxtLlamaCpp(self, imagefile):
-        chat_handler = Llava15ChatHandler(clip_model_path=self.clipmodel)
+        ch = Llava15ChatHandler(clip_model_path=self.clipmodel)
         llm = Llama(
             model_path=self.vlm,
-            chat_handler=chat_handler,
+            chat_handler=ch,
             n_gpu_layers=-1,
             seed=randint(0, sys.maxsize),
             n_ctx=2048,
@@ -138,7 +148,16 @@ class AIConnector():
                 }
             ]
         )
-        return str(response["choices"][0]["message"]["content"])
+        content = str(response["choices"][0]["message"]["content"])
+        llm.close()
+        # the following is required to free the VRAM
+        # https://github.com/abetlen/llama-cpp-python/issues/2342
+        if ch is not None and hasattr(ch, "_exit_stack"):
+            try:
+                ch._exit_stack.close()
+            except Exception:
+                pass
+        return content
 
 
     def imgToTxtTransformers(self, imagefile):
@@ -243,8 +262,10 @@ class AIConnector():
                 scenegraph = self.imgToTxt(imagefile=imagefile)
                 inferencetime = int(time.time() - starttime)
                 timestamp = datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S")
-                jsonadd = json.loads('{"uuid": "'+str(uuid.uuid4())+'", "timestamp": "'+timestamp+'", "inferencetime_s": "'+str(inferencetime)+'", "runtime": "'+self.runtime+'", "model": "'+self.vlm.rsplit('/', 1)[-1]+'", "content": {}}')
-                jsonadd['content'] = scenegraph
+                jsondesc = '{"uuid": '+json.dumps(str(uuid.uuid4()))+', "timestamp": '+json.dumps(timestamp)+', "inferencetime_s": '+str(inferencetime)+', "runtime": '+json.dumps(self.runtime)+', "model": '+json.dumps(self.vlm.rsplit('/', 1)[-1])+', "cpuinfo": '+json.dumps(self.cpuinfo)+', "gpuinfo": '+json.dumps(self.gpuinfo)+', "content": {}}'
+                print("POPULATE "+jsondesc)
+                jsonadd = json.loads(jsondesc)
+                jsonadd['content'] = json.dumps(scenegraph)
                 jsondata['descriptions'].append(jsonadd)
             jsonobject = json.dumps(jsondata, indent=4)
             with open(jsonfile, "w") as f:
