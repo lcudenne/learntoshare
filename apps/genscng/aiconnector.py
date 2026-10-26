@@ -234,7 +234,7 @@ class AIConnector():
 
 
     def sceneMergeLlamaCpp(self, mergeprompt=None):
-        ch = Llava15ChatHandler()
+        ch = Llava15ChatHandler(clip_model_path=self.clipmodel)
         llm = Llama(
             model_path=self.llm,
             chat_handler=ch,

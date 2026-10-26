@@ -104,10 +104,11 @@ class ToFind():
         print("tofind directory" + self.args.logdir)
         eventlist = []
         tofindlist = self.args.keywords
-        for logfile in glob.glob(self.args.logdir + "/*.log"):
+        for logfile in glob.glob(self.args.logdir + "/*.out"):
+            errfile = logfile.replace(".out", ".err")
             print("processing " + logfile)
-            if os.path.isfile(logfile):
-                with open(logfile) as f:
+            if os.path.isfile(logfile) and os.path.isfile(errfile):
+                with open(errfile) as f:
                     start_date = 0
                     end_date = 0
                     for logline in f:
@@ -116,9 +117,9 @@ class ToFind():
                             start_date = self.toTimestamp(logsplit)
                         if "Agent terminating" in logline:
                             end_date = self.toTimestamp(logsplit)
-                    f.seek(0)
+                with open(logfile) as f:
                     for logline in f:
-                        logsplit = logline.split(' ', 5)
+                        logsplit = logline.split(' ', 8)
                         if "TACSIT" in logline:
                             eventlist.append(dict(File=logfile,
                                                   Agent=logsplit[4],
@@ -126,9 +127,9 @@ class ToFind():
                                                   End=self.toTimestamp(logsplit)+1,
                                                   Keyword="TACSIT"))
                             for keyword in tofindlist:
-                                answer, justification = self.isPresentRegExp(keyword=keyword, descjson=json.loads(logsplit[5]))
+                                answer, justification = self.isPresentRegExp(keyword=keyword, descjson=json.loads(logsplit[8]))
                                 if not answer:
-                                    answer, justification = self.isPresentLLM(keyword=keyword, descjson=json.loads(logsplit[5]))
+                                    answer, justification = self.isPresentLLM(keyword=keyword, descjson=json.loads(logsplit[8]))
                                 if answer:
                                     eventlist.append(dict(File=logfile,
                                                           Agent=logsplit[4],

@@ -49,9 +49,11 @@ def p2p_argparse():
     parser.add_argument("-r", "--runtime", type=str, required=False,
                         help="Inference runtime {ollama, llamacpp, transformers} (default is ollama)")
     parser.add_argument("-l", "--llm", type=str, required=False,
-                        help="text model (default is ministral-3:3b)")
+                        help="AI model (default is ministral-3:3b)")
     parser.add_argument("-v", "--vlm", type=str, required=False,
-                        help="vision model (default is llava:13b)")
+                        help="AI vision model (default is llava:13b)")
+    parser.add_argument("-c", "--clipmodel", type=str, required=False,
+                        help="AI vision CLIP model to use with llamacpp runtime (mmproj file)")
 
 
     return parser.parse_args()
@@ -81,7 +83,8 @@ class GenScnG():
         self.runtime = "ollama"
         self.llm = "ministral-3:3b"
         self.vlm = "llava:13b"
-        
+        self.clipmodel = ""
+
         if parse:
             args = p2p_argparse()
             self.uid = args.uid
@@ -93,6 +96,7 @@ class GenScnG():
             self.runtime = args.runtime or "ollama"
             self.llm = args.llm or "ministral-3:3b"
             self.vlm = args.vlm or "llava:13b"
+            self.clipmodel = args.clipmodel or ""
             if args.image:
                 self.image = args.image
             if args.track:
@@ -121,7 +125,7 @@ class GenScnG():
                                  dispatch_handler=self)
         print(self.overlay.toJSON())
 
-        self.aiconnector = AIConnector(runtime=self.runtime, llm=self.llm, vlm=self.vlm,
+        self.aiconnector = AIConnector(runtime=self.runtime, llm=self.llm, vlm=self.vlm, clipmodel=self.clipmodel,
                                        stablediffusion=self.stablediffusion, sduser=self.sduser, sdpassw=self.sdpassw)
 
     def terminate(self):
@@ -175,6 +179,7 @@ class GenScnG():
         if self.image:
             for i in range(self.rounds):
                 mergescene = self.imageSeq(image=self.image, inputscene=mergescene)
+                time.sleep(5)
 
         #self.aiconnector.sendTo1111(prompt=mergescene, output=self.output + "." + self.overlay.name + ".png")
 
